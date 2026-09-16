@@ -1,30 +1,44 @@
 <x-layouts.app :title="$title ?? 'Admin Dashboard'">
-    <div class="flex h-screen bg-gray-50">
+    <div class="flex h-screen bg-gray-50" x-data="{ sidebarOpen: false }">
+        <!-- Mobile Sidebar Overlay -->
+        <div x-show="sidebarOpen" class="fixed inset-0 z-20 transition-opacity bg-black opacity-50 lg:hidden" @click="sidebarOpen = false"></div>
+        
         <!-- Sidebar -->
-        <aside class="w-64 bg-emerald-800 text-white flex flex-col transition-all duration-300">
-            <div class="h-16 flex items-center px-6 bg-emerald-900 font-bold text-xl tracking-wider">
-                AdaBarter Admin
+        <aside :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'" class="fixed inset-y-0 left-0 z-30 w-64 bg-emerald-800 text-white flex flex-col transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-auto">
+            <div class="h-16 flex items-center px-6 bg-emerald-900 font-bold text-xl tracking-wider justify-between">
+                <span>AdaBarter</span>
+                <button @click="sidebarOpen = false" class="lg:hidden text-emerald-300 hover:text-white">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
             
             <nav class="flex-1 py-4 space-y-1 overflow-y-auto">
                 @php
                     $links = [
-                        ['label' => 'Dashboard', 'url' => '#', 'icon' => 'home'],
-                        ['label' => 'Pengguna', 'url' => '#', 'icon' => 'users'],
-                        ['label' => 'Barang & Moderasi', 'url' => '#', 'icon' => 'box'],
-                        ['label' => 'Banner & Iklan', 'url' => '#', 'icon' => 'image'],
-                        ['label' => 'Monetisasi', 'url' => '#', 'icon' => 'dollar-sign'],
-                        ['label' => 'Laporan', 'url' => '#', 'icon' => 'file-text'],
-                        ['label' => 'Pengaturan', 'url' => '#', 'icon' => 'settings'],
+                        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => '<svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>'],
+                        ['label' => 'Pengguna', 'route' => 'admin.users', 'icon' => '<svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>'],
+                        ['label' => 'Barang & Moderasi', 'route' => 'admin.items', 'icon' => '<svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>'],
+                        ['label' => 'Banner & Iklan', 'route' => 'admin.banners', 'icon' => '<svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>'],
+                        ['label' => 'Monetisasi', 'route' => 'admin.monetization', 'icon' => '<svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'],
+                        ['label' => 'Laporan', 'route' => 'admin.reports', 'icon' => '<svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>'],
+                        ['label' => 'Pengaturan', 'route' => 'admin.settings', 'icon' => '<svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>'],
                     ];
                 @endphp
                 
                 @foreach($links as $link)
-                    <a href="{{ $link['url'] }}" class="flex items-center px-6 py-3 text-emerald-100 hover:bg-emerald-700 hover:text-white transition-colors">
-                        <span class="mr-3 text-sm font-medium">{{ $link['label'] }}</span>
+                    <a href="{{ route($link['route']) }}" 
+                       class="flex items-center px-6 py-3 transition-colors {{ request()->routeIs($link['route']) ? 'bg-emerald-700 text-white border-l-4 border-emerald-400' : 'text-emerald-100 hover:bg-emerald-700 hover:text-white border-l-4 border-transparent' }}">
+                        {!! $link['icon'] !!}
+                        <span class="text-sm font-medium">{{ $link['label'] }}</span>
                     </a>
                 @endforeach
             </nav>
+            
+            <div class="p-4 border-t border-emerald-700">
+                <livewire:auth.logout />
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -32,7 +46,7 @@
             <!-- Header -->
             <header class="h-16 bg-white shadow-sm flex items-center justify-between px-6 z-10">
                 <div class="flex items-center">
-                    <button class="text-gray-500 hover:text-gray-700 focus:outline-none lg:hidden">
+                    <button @click="sidebarOpen = true" class="text-gray-500 hover:text-gray-700 focus:outline-none lg:hidden">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
@@ -43,10 +57,17 @@
                 <div class="flex items-center">
                     <div class="relative">
                         <button class="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none">
-                            <span class="mr-2">Admin User</span>
-                            <div class="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
-                                A
-                            </div>
+                            @auth
+                                <span class="mr-2">{{ auth()->user()->name }}</span>
+                                <div class="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                                    {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
+                                </div>
+                            @else
+                                <span class="mr-2">Guest</span>
+                                <div class="h-8 w-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                                    G
+                                </div>
+                            @endauth
                         </button>
                     </div>
                 </div>
