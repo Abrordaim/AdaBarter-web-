@@ -2,9 +2,17 @@
 
 namespace App\Repositories\Contracts;
 
-use Ramsey\Collection\Collection;
+interface BaseRepositoryInterface
+{
+    public function all(array $columns = ['*']);
 
-interface BaseRepositoryInterface {
-    public function getAll();
-    public function count();
+    public function find(int $id, array $columns = ['*']);
+
+    public function create(array $data);
+
+    public function update(int $id, array $data);
+
+    public function delete(int $id): bool;
+
+    public function count(): int;
 }

@@ -1,12 +1,12 @@
-<?php 
+<?php
 
 namespace App\Repositories;
 
 use App\Repositories\Contracts\BaseRepositoryInterface;
 use Illuminate\Database\Eloquent\Model;
-use Ramsey\Collection\Collection;
 
-abstract class BaseRepository implements BaseRepositoryInterface {
+abstract class BaseRepository implements BaseRepositoryInterface
+{
     protected Model $model;
 
     public function __construct(Model $model)
@@ -14,16 +14,45 @@ abstract class BaseRepository implements BaseRepositoryInterface {
         $this->model = $model;
     }
 
-    public function getAll()
+    public function all(array $columns = ['*'])
     {
-       return $this->model->all();
-
+        return $this->model->all($columns);
     }
 
-    public function count()
+    public function find(int $id, array $columns = ['*'])
+    {
+        return $this->model->find($id, $columns);
+    }
+
+    public function create(array $data)
+    {
+        return $this->model->create($data);
+    }
+
+    public function update(int $id, array $data)
+    {
+        $record = $this->find($id);
+        if ($record) {
+            $record->update($data);
+
+            return $record->fresh();
+        }
+
+        return null;
+    }
+
+    public function delete(int $id): bool
+    {
+        $record = $this->find($id);
+        if ($record) {
+            return (bool) $record->delete();
+        }
+
+        return false;
+    }
+
+    public function count(): int
     {
         return $this->model->count();
     }
-
-    
 }
