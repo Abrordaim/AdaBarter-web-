@@ -76,7 +76,7 @@ class OfferController extends BaseApiController
     public function reject(Request $request, int $id): JsonResponse
     {
         try {
-            $reason = $request->input('rejection_reason');
+            $reason = $request->input('rejection_reason') ?? $request->input('reason');
             $offer = $this->offerService->rejectOffer($request->user(), $id, $reason);
 
             return $this->sendResponse(

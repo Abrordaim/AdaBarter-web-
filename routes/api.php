@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\OfferController;
 use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\VoucherController;
 use App\Http\Controllers\Api\BannerController;
+use App\Http\Controllers\Api\MonetizationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,9 +25,10 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/items', [ItemController::class, 'index']);
 Route::get('/items/{id}', [ItemController::class, 'show']);
 Route::get('/banners', [BannerController::class, 'index']);
+Route::get('/monetization/plans', [MonetizationController::class, 'plans']);
 
 // Protected routes (Sanctum Token required)
-Route::middleware(['auth:sanctum'])->group(function () { 
+Route::middleware(['auth:sanctum'])->group(function () {
     // Auth & Profile
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
@@ -57,4 +59,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Vouchers (Claim quota)
     Route::post('/vouchers/claim', [VoucherController::class, 'claim']);
+
+    // Monetization (VIP, Boost, Quota Purchase, Transactions)
+    Route::post('/monetization/subscribe', [MonetizationController::class, 'subscribe']);
+    Route::post('/monetization/items/{id}/boost', [MonetizationController::class, 'boost']);
+    Route::post('/monetization/quota/purchase', [MonetizationController::class, 'purchaseQuota']);
+    Route::get('/monetization/transactions', [MonetizationController::class, 'transactions']);
 });
