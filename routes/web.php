@@ -22,6 +22,8 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('/items', \App\Livewire\Admin\ItemModeration::class)->name('items');
     Route::get('/banners', \App\Livewire\Admin\BannerManagement::class)->name('banners');
     Route::get('/monetization', \App\Livewire\Admin\MonetizationPanel::class)->name('monetization');
+    Route::get('/categories', \App\Livewire\Admin\CategoryManagement::class)->name('categories');
     Route::get('/reports', \App\Livewire\Admin\ReportPanel::class)->name('reports');
+    Route::get('/user-reports', \App\Livewire\Admin\UserReportManagement::class)->name('user-reports');
     Route::get('/settings', \App\Livewire\Admin\SystemSettings::class)->name('settings');
 });

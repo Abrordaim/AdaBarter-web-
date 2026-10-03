@@ -16,7 +16,7 @@
                         <th class="px-6 py-3">Position</th>
                         <th class="px-6 py-3">Advertiser</th>
                         <th class="px-6 py-3">Status</th>
-                        <th class="px-6 py-3 text-center">Stats (Views/Clicks)</th>
+                        {{-- <th class="px-6 py-3 text-center">Stats (Views/Clicks)</th> --}}
                         <th class="px-6 py-3 text-right">Actions</th>
                     </tr>
                 </thead>
@@ -49,9 +49,9 @@
                                 {{ $isExpired ? 'Expired' : ($banner->is_active ? 'Active' : 'Inactive') }}
                             </button>
                         </td>
-                        <td class="px-6 py-4 text-center text-gray-900 font-medium">
+                        {{-- <td class="px-6 py-4 text-center text-gray-900 font-medium">
                             {{ number_format($banner->view_count) }} / {{ number_format($banner->click_count) }}
-                        </td>
+                        </td> --}}
                         <td class="px-6 py-4 text-right space-x-2">
                             <button wire:click="edit({{ $banner->id }})" class="text-blue-600 hover:text-blue-900 font-medium text-xs p-1">Edit</button>
                             <button wire:click="delete({{ $banner->id }})" wire:confirm="Delete this banner?" class="text-red-600 hover:text-red-900 font-medium text-xs p-1">Delete</button>
@@ -111,7 +111,6 @@
                                     <label class="block text-sm font-medium text-gray-700">Position</label>
                                     <select wire:model="position" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
                                         <option value="home_top">Home Top</option>
-                                        <option value="home_bottom">Home Bottom</option>
                                         <option value="detail_page">Detail Page</option>
                                     </select>
                                 </div>

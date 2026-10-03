@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\VoucherController;
 use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\MonetizationController;
+use App\Http\Controllers\Api\ReportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -65,4 +66,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/monetization/items/{id}/boost', [MonetizationController::class, 'boost']);
     Route::post('/monetization/quota/purchase', [MonetizationController::class, 'purchaseQuota']);
     Route::get('/monetization/transactions', [MonetizationController::class, 'transactions']);
+
+    // Reports & Complaints
+    Route::post('/reports', [ReportController::class, 'store']);
 });

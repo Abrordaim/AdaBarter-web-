@@ -15,9 +15,9 @@ class UpdateProfileRequest extends FormRequest
     {
         return [
             'name' => ['sometimes', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            'phone' => ['nullable', 'numeric'],
             'city' => ['nullable', 'string', 'max:100'],
-            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:2048'],
+            'avatar' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp', 'max:10048'],
         ];
     }
 }
