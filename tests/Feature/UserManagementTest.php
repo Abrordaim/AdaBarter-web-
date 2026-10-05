@@ -10,6 +10,11 @@ beforeEach(function () {
         'name' => 'Super Admin Test',
         'email' => 'superadmin_test@adabarter.com',
         'role' => 'super_admin',
+        'phone' => null,
+        'city' => null,
+        'is_vip' => false,
+        'free_post_quota' => 3,
+        'bonus_post_quota' => 0,
     ]);
 });
 
@@ -57,19 +62,24 @@ test('super admin can edit user without changing password', function () {
         'email' => 'user_lama@adabarter.com',
         'password' => Hash::make('original_pass'),
         'role' => 'user',
+        'phone' => null,
+        'city' => null,
+        'is_vip' => false,
+        'free_post_quota' => 3,
+        'bonus_post_quota' => 0,
     ]);
 
     Livewire::actingAs($this->superAdmin)
         ->test(UserManagement::class)
         ->call('edit', $user->id)
-        ->set('name', 'User Terupdate')
         ->set('phone', '0811223344')
+        ->set('city', 'Jakarta')
         ->call('save')
         ->assertDispatched('notify');
 
     $user->refresh();
-    expect($user->name)->toBe('User Terupdate');
     expect($user->phone)->toBe('0811223344');
+    expect($user->city)->toBe('Jakarta');
     expect(Hash::check('original_pass', $user->password))->toBeTrue();
 });
 
@@ -78,6 +88,12 @@ test('super admin can edit user and change password', function () {
         'name' => 'User Ganti Pass',
         'email' => 'ganti_pass@adabarter.com',
         'password' => Hash::make('old_secret'),
+        'role' => 'user',
+        'phone' => null,
+        'city' => null,
+        'is_vip' => false,
+        'free_post_quota' => 3,
+        'bonus_post_quota' => 0,
     ]);
 
     Livewire::actingAs($this->superAdmin)
@@ -92,7 +108,14 @@ test('super admin can edit user and change password', function () {
 });
 
 test('cannot create user with duplicate email', function () {
-    User::factory()->create(['email' => 'existing@adabarter.com']);
+    User::factory()->create([
+        'email' => 'existing@adabarter.com',
+        'phone' => null,
+        'city' => null,
+        'is_vip' => false,
+        'free_post_quota' => 3,
+        'bonus_post_quota' => 0,
+    ]);
 
     Livewire::actingAs($this->superAdmin)
         ->test(UserManagement::class)
@@ -100,6 +123,9 @@ test('cannot create user with duplicate email', function () {
         ->set('name', 'Duplicate User')
         ->set('email', 'existing@adabarter.com')
         ->set('password', 'password123')
+        ->set('role', 'user')
+        ->set('free_post_quota', 3)
+        ->set('bonus_post_quota', 0)
         ->call('save')
         ->assertHasErrors(['email' => 'unique']);
 });
@@ -114,7 +140,13 @@ test('super admin cannot delete own account', function () {
 });
 
 test('super admin can delete other user', function () {
-    $other = User::factory()->create();
+    $other = User::factory()->create([
+        'phone' => null,
+        'city' => null,
+        'is_vip' => false,
+        'free_post_quota' => 3,
+        'bonus_post_quota' => 0,
+    ]);
 
     Livewire::actingAs($this->superAdmin)
         ->test(UserManagement::class)

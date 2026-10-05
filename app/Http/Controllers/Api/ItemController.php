@@ -103,4 +103,21 @@ class ItemController extends BaseApiController
             return $this->sendError('Gagal menghapus barang: '.$e->getMessage(), [], 400);
         }
     }
+
+    /**
+     * Return a distinct, sorted list of cities that have at least one active item.
+     * Used by the mobile app's hyperlocal city-picker filter.
+     */
+    public function cities(): JsonResponse
+    {
+        $cities = \App\Models\Item::query()
+            ->where('status', 'active')
+            ->whereNotNull('city')
+            ->where('city', '!=', '')
+            ->distinct()
+            ->orderBy('city')
+            ->pluck('city');
+
+        return $this->sendResponse($cities, 'Daftar kota berhasil diambil.');
+    }
 }

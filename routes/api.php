@@ -24,6 +24,7 @@ Route::post('/login', [AuthController::class, 'login']);
 
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/items', [ItemController::class, 'index']);
+Route::get('/items/cities', [ItemController::class, 'cities']); // Must be before /items/{id}
 Route::get('/items/{id}', [ItemController::class, 'show']);
 Route::get('/banners', [BannerController::class, 'index']);
 Route::get('/monetization/plans', [MonetizationController::class, 'plans']);

@@ -90,7 +90,7 @@ class UserManagement extends Component
             'email'            => $emailRule,
             'password'         => $passwordRule,
             'role'             => 'required|in:user,admin,super_admin',
-            'phone'            => 'nullable|integer|',
+            'phone'            => 'nullable|string|max:20',
             'city'             => 'nullable|string|max:100',
             'is_vip'           => 'boolean',
             'free_post_quota'  => 'required|integer|min:0',
