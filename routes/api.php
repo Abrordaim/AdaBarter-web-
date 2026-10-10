@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\VoucherController;
 use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\MonetizationController;
 use App\Http\Controllers\Api\ReportController;
+use App\Http\Controllers\Api\RatingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,6 +29,7 @@ Route::get('/items/cities', [ItemController::class, 'cities']); // Must be befor
 Route::get('/items/{id}', [ItemController::class, 'show']);
 Route::get('/banners', [BannerController::class, 'index']);
 Route::get('/monetization/plans', [MonetizationController::class, 'plans']);
+Route::get('/users/{id}/ratings', [RatingController::class, 'userRatings']);
 
 // Protected routes (Sanctum Token required)
 Route::middleware(['auth:sanctum'])->group(function () {
@@ -70,4 +72,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Reports & Complaints
     Route::post('/reports', [ReportController::class, 'store']);
+
+    // Ratings & Reviews
+    Route::post('/ratings', [RatingController::class, 'store']);
 });

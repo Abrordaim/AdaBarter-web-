@@ -63,6 +63,11 @@ class Offer extends Model
         return $this->hasMany(Chat::class);
     }
 
+    public function ratings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Rating::class);
+    }
+
     public function isPending(): bool
     {
         return $this->status === 'pending';

@@ -23,6 +23,8 @@ class UserResource extends JsonResource
             'bonus_post_quota' => $this->bonus_post_quota,
             'remaining_quota' => $this->remainingPostQuota(),
             'can_post' => $this->canPost(),
+            'average_rating' => $this->averageRating(),
+            'ratings_count' => $this->ratingsCount(),
             'created_at' => $this->created_at?->toISOString(),
         ];
     }

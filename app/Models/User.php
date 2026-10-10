@@ -113,6 +113,27 @@ class User extends Authenticatable
         return $this->isVip() || $this->remainingPostQuota() > 0;
     }
 
+    public function ratingsReceived(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Rating::class, 'rated_user_id');
+    }
+
+    public function ratingsGiven(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Rating::class, 'rater_id');
+    }
+
+    public function averageRating(): ?float
+    {
+        $avg = $this->ratingsReceived()->avg('rating');
+        return $avg !== null ? round((float) $avg, 1) : null;
+    }
+
+    public function ratingsCount(): int
+    {
+        return $this->ratingsReceived()->count();
+    }
+
     /**
      * Get the user's initials
      */

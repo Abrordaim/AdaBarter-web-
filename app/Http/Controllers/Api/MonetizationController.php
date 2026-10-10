@@ -8,7 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
-class MonetizationController extends BaseApiController
+class MonetizationController extends BaseApiController 
 {
     public function __construct(
         protected MonetizationService $monetizationService
@@ -26,14 +26,14 @@ class MonetizationController extends BaseApiController
     public function subscribe(Request $request): JsonResponse
     {
         $request->validate([
-            'plan_id' => 'required|string',
+            'plan_id'        => 'required|integer|exists:vip_plans,id',
             'payment_method' => 'nullable|string',
         ]);
 
         try {
             $result = $this->monetizationService->subscribe(
                 $request->user(),
-                $request->input('plan_id'),
+                (int) $request->input('plan_id'),
                 $request->input('payment_method', 'QRIS / Virtual Account')
             );
 
@@ -48,15 +48,20 @@ class MonetizationController extends BaseApiController
     public function boost(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'days' => 'required|integer|in:3,7,30',
-            'payment_method' => 'nullable|string',
+            'boost_package_id' => 'required_without:days|nullable|integer|exists:boost_packages,id',
+            'days'             => 'required_without:boost_package_id|nullable|integer',
+            'payment_method'   => 'nullable|string',
         ]);
 
         try {
+            $boostPackageId = $request->has('boost_package_id') ? (int) $request->input('boost_package_id') : null;
+            $days           = $request->has('days') ? (int) $request->input('days') : null;
+
             $result = $this->monetizationService->boostItem(
                 $request->user(),
                 $id,
-                (int) $request->input('days'),
+                $boostPackageId,
+                $days,
                 $request->input('payment_method', 'QRIS / Virtual Account')
             );
 
@@ -71,14 +76,14 @@ class MonetizationController extends BaseApiController
     public function purchaseQuota(Request $request): JsonResponse
     {
         $request->validate([
-            'slots' => 'required|integer|in:1,3,5',
-            'payment_method' => 'nullable|string',
+            'slot_package_id' => 'required|integer|exists:slot_packages,id',
+            'payment_method'  => 'nullable|string',
         ]);
 
         try {
             $result = $this->monetizationService->purchaseQuota(
                 $request->user(),
-                (int) $request->input('slots'),
+                (int) $request->input('slot_package_id'),
                 $request->input('payment_method', 'QRIS / Virtual Account')
             );
 

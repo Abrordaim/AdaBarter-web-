@@ -45,6 +45,8 @@ class UserService
             'total_items_count' => $user->items()->count(),
             'sent_offers_count' => $user->sentOffers()->count(),
             'received_offers_count' => $user->receivedOffers()->count(),
+            'average_rating' => $user->averageRating(),
+            'ratings_count' => $user->ratingsCount(),
             'created_at' => $user->created_at?->toISOString(),
         ];
     }

@@ -25,6 +25,9 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CategorySeeder::class,
             VoucherSeeder::class,
+            SlotPackageSeeder::class,
+            VipPlanSeeder::class,
+            BoostPackageSeeder::class,
         ]);
 
         // 1. Users

@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\BoostPackage;
 use App\Models\Item;
+use App\Models\SlotPackage;
 use App\Models\Subscription;
 use App\Models\Transaction;
 use App\Models\User;
+use App\Models\VipPlan;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -14,138 +17,83 @@ use Illuminate\Validation\ValidationException;
 class MonetizationService
 {
     /**
-     * Get available VIP subscription plans.
+     * Get available VIP subscription plans from DB.
      */
     public function getSubscriptionPlans(): array
     {
-        return [
-            [
-                'id' => 'vip_1m',
-                'name' => 'VIP 1 Bulan',
-                'duration_days' => 30,
-                'price' => 49000,
-                'formatted_price' => 'Rp 49.000',
-                'tag' => 'Standar',
-                'features' => [
-                    'Posting barang tanpa batas (Unlimited Quota)',
-                    'Lencana VIP eksklusif di profil & katalog',
-                    'Prioritas tampil di hasil pencarian',
-                    'Dukungan bantuan prioritas',
-                ],
-            ],
-            [
-                'id' => 'vip_3m',
-                'name' => 'VIP 3 Bulan',
-                'duration_days' => 90,
-                'price' => 119000,
-                'formatted_price' => 'Rp 119.000',
-                'tag' => 'Paling Populer',
-                'badge' => 'Hemat 20%',
-                'features' => [
-                    'Semua keuntungan VIP 1 Bulan',
-                    'Masa aktif lebih panjang (90 hari)',
-                    'Hemat biaya langganan bulanan',
-                ],
-            ],
-            [
-                'id' => 'vip_1y',
-                'name' => 'VIP 1 Tahun',
-                'duration_days' => 365,
-                'price' => 399000,
-                'formatted_price' => 'Rp 399.000',
-                'tag' => 'Terbaik',
-                'badge' => 'Hemat 35%',
-                'features' => [
-                    'Semua keuntungan paket VIP',
-                    'Bebas posting selama 365 hari penuh',
-                    'Bonus 2x Free Boost Listing mingguan',
-                ],
-            ],
-        ];
+        return VipPlan::active()
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (VipPlan $plan) => [
+                'id'              => $plan->id,
+                'name'            => $plan->name,
+                'duration_days'   => $plan->duration_days,
+                'price'           => (float) $plan->price,
+                'formatted_price' => $plan->formatted_price,
+                'tag'             => $plan->tag,
+                'badge'           => $plan->badge,
+                'features'        => $plan->features ?? [],
+            ])
+            ->values()
+            ->toArray();
     }
 
     /**
-     * Get available Item Boost packages.
+     * Get available Item Boost packages from DB.
      */
     public function getBoostPackages(): array
     {
-        return [
-            [
-                'id' => 'boost_3d',
-                'days' => 3,
-                'price' => 15000,
-                'formatted_price' => 'Rp 15.000',
-                'label' => 'Boost 3 Hari',
-                'description' => 'Posisi teratas feed beranda selama 3 hari',
-            ],
-            [
-                'id' => 'boost_7d',
-                'days' => 7,
-                'price' => 29000,
-                'formatted_price' => 'Rp 29.000',
-                'label' => 'Boost 7 Hari',
-                'tag' => 'Paling Diminati',
-                'description' => 'Maksimal eksposur barter selama 1 minggu penuh',
-            ],
-            [
-                'id' => 'boost_30d',
-                'days' => 30,
-                'price' => 89000,
-                'formatted_price' => 'Rp 89.000',
-                'label' => 'Boost 30 Hari',
-                'description' => 'Prioritas sorotan selama 1 bulan',
-            ],
-        ];
+        return BoostPackage::active()
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (BoostPackage $pkg) => [
+                'id'              => $pkg->id,
+                'days'            => $pkg->days,
+                'price'           => (float) $pkg->price,
+                'formatted_price' => $pkg->formatted_price,
+                'label'           => $pkg->name,
+                'tag'             => $pkg->tag,
+                'description'     => $pkg->description,
+            ])
+            ->values()
+            ->toArray();
     }
 
     /**
-     * Get pay-per-post quota packages.
+     * Get pay-per-post quota packages from DB.
      */
     public function getQuotaPackages(): array
     {
-        return [
-            [
-                'id' => 'quota_1',
-                'slots' => 1,
-                'price' => 10000,
-                'formatted_price' => 'Rp 10.000',
-                'label' => '+1 Slot Barang',
-            ],
-            [
-                'id' => 'quota_3',
-                'slots' => 3,
-                'price' => 25000,
-                'formatted_price' => 'Rp 25.000',
-                'label' => '+3 Slot Barang',
-                'badge' => 'Hemat Rp 5.000',
-            ],
-            [
-                'id' => 'quota_5',
-                'slots' => 5,
-                'price' => 40000,
-                'formatted_price' => 'Rp 40.000',
-                'label' => '+5 Slot Barang',
-                'badge' => 'Hemat Rp 10.000',
-            ],
-        ];
+        return SlotPackage::active()
+            ->orderBy('sort_order')
+            ->get()
+            ->map(fn (SlotPackage $pkg) => [
+                'id'              => $pkg->id,
+                'slots'           => $pkg->slots,
+                'price'           => (float) $pkg->price,
+                'formatted_price' => $pkg->formatted_price,
+                'label'           => $pkg->name,
+                'badge'           => $pkg->badge,
+            ])
+            ->values()
+            ->toArray();
     }
 
     /**
-     * Subscribe user to a VIP plan (Localhost simulation).
+     * Subscribe user to a VIP plan using plan's DB integer ID.
      */
-    public function subscribe(User $user, string $planId, string $paymentMethod = 'QRIS / Bank Transfer'): array
+    public function subscribe(User $user, int $planId, string $paymentMethod = 'QRIS / Bank Transfer'): array
     {
-        $plans = collect($this->getSubscriptionPlans());
-        $selectedPlan = $plans->firstWhere('id', $planId);
+        $selectedPlan = VipPlan::active()->find($planId);
 
-        if (!$selectedPlan) {
-            throw ValidationException::withMessages(['plan' => 'Paket langganan tidak valid.']);
+        if (! $selectedPlan) {
+            throw ValidationException::withMessages(['plan' => 'Paket langganan tidak valid atau sudah tidak tersedia.']);
         }
 
         return DB::transaction(function () use ($user, $selectedPlan, $paymentMethod) {
-            $durationDays = $selectedPlan['duration_days'];
-            $startedAt = now();
-            $expiredAt = now()->addDays($durationDays);
+            $durationDays = $selectedPlan->duration_days;
+            $startedAt    = now();
+            $expiredAt    = now()->addDays($durationDays);
 
             // Update user status
             $user->is_vip = true;
@@ -153,104 +101,133 @@ class MonetizationService
 
             // Record Subscription
             $sub = Subscription::create([
-                'user_id' => $user->id,
-                'plan' => 'vip',
-                'price_paid' => $selectedPlan['price'],
+                'user_id'    => $user->id,
+                'plan'       => 'vip',
+                'price_paid' => $selectedPlan->price,
                 'started_at' => $startedAt,
                 'expired_at' => $expiredAt,
-                'is_active' => true,
+                'is_active'  => true,
             ]);
 
             // Record Transaction
             $trx = Transaction::create([
-                'user_id' => $user->id,
-                'type' => 'subscription',
-                'amount' => $selectedPlan['price'],
-                'description' => "Langganan {$selectedPlan['name']} ({$durationDays} hari)",
-                'status' => 'completed',
+                'user_id'        => $user->id,
+                'type'           => 'subscription',
+                'amount'         => $selectedPlan->price,
+                'description'    => "Langganan {$selectedPlan->name} ({$durationDays} hari)",
+                'status'         => 'completed',
                 'payment_method' => $paymentMethod,
-                'payment_ref' => 'SUB-' . strtoupper(Str::random(10)),
+                'payment_ref'    => 'SUB-' . strtoupper(Str::random(10)),
             ]);
 
             return [
                 'subscription' => $sub,
-                'transaction' => $trx,
-                'plan' => $selectedPlan,
+                'transaction'  => $trx,
+                'plan'         => [
+                    'id'            => $selectedPlan->id,
+                    'name'          => $selectedPlan->name,
+                    'duration_days' => $durationDays,
+                    'price'         => (float) $selectedPlan->price,
+                ],
             ];
         });
     }
 
     /**
-     * Boost an item listing (Localhost simulation).
+     * Boost an item listing using package ID or days.
      */
-    public function boostItem(User $user, int $itemId, int $days, string $paymentMethod = 'QRIS / Bank Transfer'): array
-    {
+    public function boostItem(
+        User $user,
+        int $itemId,
+        ?int $boostPackageId = null,
+        ?int $days = null,
+        string $paymentMethod = 'QRIS / Bank Transfer'
+    ): array {
         /** @var Item|null $item */
         $item = Item::find($itemId);
 
-        if (!$item) {
+        if (! $item) {
             throw new \Exception('Barang tidak ditemukan.');
         }
 
-        if ($item->user_id !== $user->id && !$user->isAdmin()) {
+        if ($item->user_id !== $user->id && ! $user->isAdmin()) {
             throw new AuthorizationException('Anda hanya dapat mem-boost barang milik Anda sendiri.');
         }
 
-        $boostPackage = collect($this->getBoostPackages())->firstWhere('days', $days);
-        $price = $boostPackage ? $boostPackage['price'] : 15000;
+        /** @var BoostPackage|null $boostPackage */
+        $boostPackage = null;
+        if ($boostPackageId) {
+            $boostPackage = BoostPackage::active()->find($boostPackageId);
+        }
+        if (! $boostPackage && $days) {
+            $boostPackage = BoostPackage::active()->where('days', $days)->first();
+        }
 
-        return DB::transaction(function () use ($item, $user, $days, $price, $paymentMethod) {
-            $boostExpires = now()->addDays($days);
+        if (! $boostPackage) {
+            throw new \Exception('Paket iklan sorotan (boost) tidak valid atau sudah tidak tersedia.');
+        }
+
+        $daysCount = $boostPackage->days;
+        $price     = $boostPackage->price;
+
+        return DB::transaction(function () use ($item, $user, $boostPackage, $daysCount, $price, $paymentMethod) {
+            $boostExpires = now()->addDays($daysCount);
 
             $item->update([
-                'is_boosted' => true,
+                'is_boosted'       => true,
                 'boost_expires_at' => $boostExpires,
             ]);
 
             $trx = Transaction::create([
-                'user_id' => $user->id,
-                'type' => 'boost',
-                'amount' => $price,
-                'description' => "Iklan Sorotan (Boost {$days} Hari) untuk barang '{$item->title}'",
-                'status' => 'completed',
+                'user_id'        => $user->id,
+                'type'           => 'boost',
+                'amount'         => $price,
+                'description'    => "Iklan Sorotan ({$boostPackage->name}) untuk barang '{$item->title}'",
+                'status'         => 'completed',
                 'payment_method' => $paymentMethod,
-                'payment_ref' => 'BST-' . strtoupper(Str::random(10)),
+                'payment_ref'    => 'BST-' . strtoupper(Str::random(10)),
             ]);
 
             return [
-                'item' => $item->fresh(),
+                'item'        => $item->fresh(),
                 'transaction' => $trx,
-                'expires_at' => $boostExpires->toISOString(),
+                'expires_at'  => $boostExpires->toISOString(),
             ];
         });
     }
 
     /**
-     * Purchase extra posting quota (Pay-per-post, Localhost simulation).
+     * Purchase extra posting quota by slot_package_id from DB.
      */
-    public function purchaseQuota(User $user, int $slots, string $paymentMethod = 'QRIS / Bank Transfer'): array
+    public function purchaseQuota(User $user, int $slotPackageId, string $paymentMethod = 'QRIS / Bank Transfer'): array
     {
-        $pkg = collect($this->getQuotaPackages())->firstWhere('slots', $slots);
-        $price = $pkg ? $pkg['price'] : 10000;
+        $pkg = SlotPackage::active()->find($slotPackageId);
 
-        return DB::transaction(function () use ($user, $slots, $price, $paymentMethod) {
+        if (! $pkg) {
+            throw new \Exception('Paket slot tidak valid atau sudah tidak tersedia.');
+        }
+
+        return DB::transaction(function () use ($user, $pkg, $paymentMethod) {
+            $slots = $pkg->slots;
+            $price = $pkg->price;
+
             $user->increment('bonus_post_quota', $slots);
             $user->refresh();
 
             $trx = Transaction::create([
-                'user_id' => $user->id,
-                'type' => 'pay_per_post',
-                'amount' => $price,
-                'description' => "Pembelian Kuota Tambahan +{$slots} Slot Posting",
-                'status' => 'completed',
+                'user_id'        => $user->id,
+                'type'           => 'pay_per_post',
+                'amount'         => $price,
+                'description'    => "Pembelian Kuota Tambahan — {$pkg->name} (+{$slots} Slot Posting)",
+                'status'         => 'completed',
                 'payment_method' => $paymentMethod,
-                'payment_ref' => 'QTA-' . strtoupper(Str::random(10)),
+                'payment_ref'    => 'QTA-' . strtoupper(Str::random(10)),
             ]);
 
             return [
                 'new_bonus_quota' => $user->bonus_post_quota,
                 'remaining_quota' => $user->remainingPostQuota(),
-                'transaction' => $trx,
+                'transaction'     => $trx,
             ];
         });
     }
