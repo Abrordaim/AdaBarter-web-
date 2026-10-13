@@ -30,6 +30,7 @@ Route::get('/items/{id}', [ItemController::class, 'show']);
 Route::get('/banners', [BannerController::class, 'index']);
 Route::get('/monetization/plans', [MonetizationController::class, 'plans']);
 Route::get('/users/{id}/ratings', [RatingController::class, 'userRatings']);
+Route::get('/users/{id}', [UserController::class, 'show']);
 
 // Protected routes (Sanctum Token required)
 Route::middleware(['auth:sanctum'])->group(function () {

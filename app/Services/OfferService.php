@@ -36,7 +36,7 @@ class OfferService
     }
 
     /**
-     * Submit a barter or tukar tambah offer.
+     * Submit a barter or tukar tambah offer (supports multiple offered items).
      *
      * @param User $user
      * @param array $data
@@ -45,25 +45,24 @@ class OfferService
      */
     public function createOffer(User $user, array $data): Offer
     {
-        $offererItemId = (int) $data['offerer_item_id'];
+        // Support both offerer_item_ids (array) and offerer_item_id (single)
+        $offererItemIds = [];
+        if (!empty($data['offerer_item_ids']) && is_array($data['offerer_item_ids'])) {
+            $offererItemIds = array_map('intval', $data['offerer_item_ids']);
+        } elseif (!empty($data['offerer_item_id'])) {
+            $offererItemIds = [(int) $data['offerer_item_id']];
+        }
+
+        if (empty($offererItemIds)) {
+            throw ValidationException::withMessages([
+                'offerer_item_ids' => ['Pilih minimal satu barang untuk ditukarkan.'],
+            ]);
+        }
+
         $targetItemId = (int) $data['target_item_id'];
 
-        /** @var Item|null $offererItem */
-        $offererItem = $this->itemRepository->find($offererItemId);
         /** @var Item|null $targetItem */
         $targetItem = $this->itemRepository->find($targetItemId);
-
-        if (!$offererItem || $offererItem->user_id !== $user->id) {
-            throw ValidationException::withMessages([
-                'offerer_item_id' => ['Barang penawar tidak valid atau bukan milik Anda.'],
-            ]);
-        }
-
-        if ($offererItem->status !== 'active') {
-            throw ValidationException::withMessages([
-                'offerer_item_id' => ['Barang yang Anda tawarkan tidak sedang aktif.'],
-            ]);
-        }
 
         if (!$targetItem || $targetItem->status !== 'active') {
             throw ValidationException::withMessages([
@@ -77,26 +76,78 @@ class OfferService
             ]);
         }
 
-        // Check if there's already a pending offer for these exact two items
-        if ($this->offerRepository->existsPendingOffer($offererItemId, $targetItemId)) {
-            throw ValidationException::withMessages([
-                'target_item_id' => ['Anda sudah memiliki penawaran barter yang sedang diproses untuk barang ini.'],
-            ]);
+        // Validate all offerer items
+        $offererItems = [];
+        $totalOffererPrice = 0;
+        foreach ($offererItemIds as $itemId) {
+            $item = $this->itemRepository->find($itemId);
+
+            if (!$item || $item->user_id !== $user->id) {
+                throw ValidationException::withMessages([
+                    'offerer_item_ids' => ["Barang penawar (#{$itemId}) tidak valid atau bukan milik Anda."],
+                ]);
+            }
+
+            if ($item->status !== 'active') {
+                throw ValidationException::withMessages([
+                    'offerer_item_ids' => ["Barang '{$item->title}' tidak sedang aktif."],
+                ]);
+            }
+
+            // Check if there's already a pending offer for any of these items against targetItem
+            if ($this->offerRepository->existsPendingOffer($itemId, $targetItemId)) {
+                throw ValidationException::withMessages([
+                    'target_item_id' => ["Anda sudah memiliki penawaran barter yang sedang diproses untuk barang '{$item->title}' terhadap barang target ini."],
+                ]);
+            }
+
+            $offererItems[] = $item;
+            $totalOffererPrice += (float) ($item->estimated_price ?? 0);
         }
 
-        $offerData = [
-            'offerer_user_id' => $user->id,
-            'offerer_item_id' => $offererItemId,
-            'target_user_id' => $targetItem->user_id,
-            'target_item_id' => $targetItemId,
-            'cash_supplement' => $data['cash_supplement'] ?? null,
-            'cash_supplement_by' => $data['cash_supplement_by'] ?? null,
-            'status' => 'pending',
-            'offerer_approved' => true,
-            'target_approved' => false,
-        ];
+        // Auto-calculate cash supplement if not manually provided
+        $cashSupplement = $data['cash_supplement'] ?? null;
+        $cashSupplementBy = $data['cash_supplement_by'] ?? null;
 
-        return $this->offerRepository->create($offerData);
+        $targetPrice = (float) ($targetItem->estimated_price ?? 0);
+        if ($cashSupplement === null && $totalOffererPrice > 0 && $targetPrice > 0) {
+            $diff = $targetPrice - $totalOffererPrice;
+            if ($diff > 0) {
+                $cashSupplement = $diff;
+                $cashSupplementBy = 'offerer';
+            } elseif ($diff < 0) {
+                $cashSupplement = abs($diff);
+                $cashSupplementBy = 'target_owner';
+            }
+        }
+
+        return DB::transaction(function () use ($user, $offererItems, $offererItemIds, $targetItem, $targetItemId, $cashSupplement, $cashSupplementBy) {
+            $primaryOffererItemId = $offererItemIds[0];
+
+            $offerData = [
+                'offerer_user_id'    => $user->id,
+                'offerer_item_id'    => $primaryOffererItemId,
+                'target_user_id'     => $targetItem->user_id,
+                'target_item_id'     => $targetItemId,
+                'cash_supplement'    => $cashSupplement,
+                'cash_supplement_by' => $cashSupplementBy,
+                'status'             => 'pending',
+                'offerer_approved'   => true,
+                'target_approved'    => false,
+            ];
+
+            /** @var Offer $offer */
+            $offer = $this->offerRepository->create($offerData);
+
+            // Attach all offerer items into offer_items pivot
+            $attachData = [];
+            foreach ($offererItemIds as $itemId) {
+                $attachData[$itemId] = ['role' => 'offerer'];
+            }
+            $offer->offererItems()->sync($attachData);
+
+            return $offer->load(['offererItems', 'offererItem', 'targetItem', 'offerer', 'targetOwner']);
+        });
     }
 
     /**
@@ -207,8 +258,15 @@ class OfferService
             ]);
 
             // Update items status to traded
-            $this->itemRepository->update($offer->offerer_item_id, ['status' => 'traded']);
             $this->itemRepository->update($offer->target_item_id, ['status' => 'traded']);
+
+            $offererItemIds = $offer->offererItems()->pluck('items.id')->toArray();
+            if (empty($offererItemIds) && $offer->offerer_item_id) {
+                $offererItemIds = [$offer->offerer_item_id];
+            }
+            foreach ($offererItemIds as $offId) {
+                $this->itemRepository->update($offId, ['status' => 'traded']);
+            }
 
             // Post system message
             Chat::create([

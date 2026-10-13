@@ -38,6 +38,12 @@ class OfferResource extends JsonResource
             'offerer' => new UserResource($this->whenLoaded('offerer')),
             'target_owner' => new UserResource($this->whenLoaded('targetOwner')),
             'offerer_item' => new ItemResource($this->whenLoaded('offererItem')),
+            'offerer_items' => ItemResource::collection(
+                $this->relationLoaded('offererItems') && $this->offererItems->isNotEmpty()
+                    ? $this->offererItems
+                    : ($this->relationLoaded('offererItem') && $this->offererItem ? collect([$this->offererItem]) : collect())
+            ),
+            'total_offerer_estimated_price' => $this->totalOffererEstimatedPrice(),
             'target_item' => new ItemResource($this->whenLoaded('targetItem')),
             'latest_message' => new ChatResource($this->whenLoaded('chats', fn () => $this->chats->first())),
             'created_at' => $this->created_at?->toISOString(),

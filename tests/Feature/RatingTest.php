@@ -238,3 +238,26 @@ test('public endpoint GET /api/users/{id}/ratings returns list of ratings', func
         ->assertJsonPath('data.ratings.0.comment', 'Ulasan publik untuk user B')
         ->assertJsonPath('data.ratings.0.rater.name', 'User Penawar');
 });
+
+test('public endpoint GET /api/users/{id} returns user public profile and active items', function () {
+    Item::create([
+        'user_id' => $this->userB->id,
+        'category_id' => $this->category->id,
+        'title' => 'Barang Aktif B',
+        'description' => 'Masih tersedia',
+        'condition' => 'baru',
+        'status' => 'active',
+    ]);
+
+    $response = $this->getJson("/api/users/{$this->userB->id}");
+
+    $response->assertStatus(200)
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('data.user.id', $this->userB->id)
+        ->assertJsonPath('data.user.name', 'User Target')
+        ->assertJsonPath('data.user.completed_trades_count', 1)
+        ->assertJsonPath('data.user.active_items_count', 1)
+        ->assertJsonCount(1, 'data.items')
+        ->assertJsonPath('data.items.0.title', 'Barang Aktif B');
+});
+

@@ -53,6 +53,27 @@ class Offer extends Model
         return $this->belongsTo(Item::class, 'offerer_item_id');
     }
 
+    public function offererItems(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Item::class, 'offer_items', 'offer_id', 'item_id')
+            ->wherePivot('role', 'offerer')
+            ->withTimestamps();
+    }
+
+    public function totalOffererEstimatedPrice(): float
+    {
+        if ($this->relationLoaded('offererItems') && $this->offererItems->isNotEmpty()) {
+            return (float) $this->offererItems->sum(fn ($item) => (float) $item->estimated_price);
+        }
+
+        $items = $this->offererItems()->get();
+        if ($items->isNotEmpty()) {
+            return (float) $items->sum(fn ($item) => (float) $item->estimated_price);
+        }
+
+        return (float) ($this->offererItem?->estimated_price ?? 0);
+    }
+
     public function targetItem(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Item::class, 'target_item_id');

@@ -18,6 +18,7 @@ class OfferRepository extends BaseRepository implements OfferRepositoryInterface
             'offerer:id,name,city,avatar',
             'targetOwner:id,name,city,avatar',
             'offererItem:id,title,images,condition,estimated_price',
+            'offererItems:id,title,images,condition,estimated_price',
             'targetItem:id,title,images,condition,estimated_price'
         ]);
 
@@ -45,6 +46,7 @@ class OfferRepository extends BaseRepository implements OfferRepositoryInterface
             'offerer:id,name,city,avatar',
             'targetOwner:id,name,city,avatar',
             'offererItem',
+            'offererItems',
             'targetItem'
         ])->where('id', $id)
           ->where(function ($q) use ($userId) {
@@ -59,6 +61,7 @@ class OfferRepository extends BaseRepository implements OfferRepositoryInterface
             'offerer:id,name,city,avatar',
             'targetOwner:id,name,city,avatar',
             'offererItem:id,title,images',
+            'offererItems:id,title,images',
             'targetItem:id,title,images',
             'chats' => function ($q) {
                 $q->latest()->limit(1);
@@ -73,9 +76,12 @@ class OfferRepository extends BaseRepository implements OfferRepositoryInterface
 
     public function existsPendingOffer(int $offererItemId, int $targetItemId): bool
     {
-        return $this->model->where('offerer_item_id', $offererItemId)
-            ->where('target_item_id', $targetItemId)
+        return $this->model->where('target_item_id', $targetItemId)
             ->where('status', 'pending')
+            ->where(function ($q) use ($offererItemId) {
+                $q->where('offerer_item_id', $offererItemId)
+                  ->orWhereHas('offererItems', fn ($sub) => $sub->where('items.id', $offererItemId));
+            })
             ->exists();
     }
 }

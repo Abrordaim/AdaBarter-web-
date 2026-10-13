@@ -257,3 +257,86 @@ test('offerer can cancel pending offer', function () {
 
     expect($offer->fresh()->status)->toBe('cancelled');
 });
+
+test('user can submit multi-item barter proposal with automatic price calculation', function () {
+    // User A creates second item (e.g. AirPods Rp 1.000.000)
+    $itemA2 = Item::create([
+        'user_id' => $this->userA->id,
+        'category_id' => $this->category->id,
+        'title' => 'AirPods Pro Gen 2',
+        'description' => 'Original iBox',
+        'condition' => 'bekas_seperti_baru',
+        'estimated_price' => 1000000,
+        'city' => 'Jakarta Selatan',
+        'status' => 'active',
+    ]);
+
+    // Total A = itemA (4.500.000) + itemA2 (1.000.000) = 5.500.000
+    // Target B = itemB (5.000.000)
+    // Diff = 500.000, payer = target_owner
+    $response = $this->withHeader('Authorization', "Bearer {$this->tokenA}")
+        ->postJson('/api/offers', [
+            'offerer_item_ids' => [$this->itemA->id, $itemA2->id],
+            'target_item_id' => $this->itemB->id,
+        ]);
+
+    $response->assertStatus(201)
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('data.status', 'pending')
+        ->assertJsonPath('data.cash_supplement', 500000)
+        ->assertJsonPath('data.cash_supplement_by', 'target_owner')
+        ->assertJsonPath('data.total_offerer_estimated_price', 5500000);
+
+    expect($response->json('data.offerer_items'))->toHaveCount(2);
+
+    $offerId = $response->json('data.id');
+    $this->assertDatabaseHas('offer_items', [
+        'offer_id' => $offerId,
+        'item_id' => $this->itemA->id,
+        'role' => 'offerer',
+    ]);
+    $this->assertDatabaseHas('offer_items', [
+        'offer_id' => $offerId,
+        'item_id' => $itemA2->id,
+        'role' => 'offerer',
+    ]);
+
+    // Target owner accepts
+    auth()->forgetGuards();
+    $this->withHeader('Authorization', "Bearer {$this->tokenB}")
+        ->postJson("/api/offers/{$offerId}/accept")
+        ->assertStatus(200);
+
+    // Complete offer -> both offerer items and target item become 'traded'
+    auth()->forgetGuards();
+    $this->withHeader('Authorization', "Bearer {$this->tokenA}")
+        ->postJson("/api/offers/{$offerId}/complete")
+        ->assertStatus(200);
+
+    expect($this->itemA->fresh()->status)->toBe('traded');
+    expect($itemA2->fresh()->status)->toBe('traded');
+    expect($this->itemB->fresh()->status)->toBe('traded');
+});
+
+test('multi-item barter fails if any offered item belongs to someone else', function () {
+    $otherUser = User::factory()->create();
+    $otherItem = Item::create([
+        'user_id' => $otherUser->id,
+        'category_id' => $this->category->id,
+        'title' => 'Barang Orang Lain',
+        'description' => 'Test',
+        'condition' => 'bekas_baik',
+        'estimated_price' => 500000,
+        'city' => 'Jakarta',
+        'status' => 'active',
+    ]);
+
+    $response = $this->withHeader('Authorization', "Bearer {$this->tokenA}")
+        ->postJson('/api/offers', [
+            'offerer_item_ids' => [$this->itemA->id, $otherItem->id],
+            'target_item_id' => $this->itemB->id,
+        ]);
+
+    $response->assertStatus(422)
+        ->assertJsonValidationErrors(['offerer_item_ids']);
+});

@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
  * @property int $id
  * @property string $name
  * @property int $slots
- * @property float $price
+ * @property float $price 
  * @property string|null $badge
  * @property bool $is_active
  * @property int $sort_order
