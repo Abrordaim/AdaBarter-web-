@@ -57,6 +57,14 @@ class ItemService
             }
         }
 
+        $provinceId = $data['province_id'] ?? $user->province_id;
+        $regencyId = $data['regency_id'] ?? $user->regency_id;
+        $districtId = $data['district_id'] ?? $user->district_id;
+
+        $provinceName = $data['province_name'] ?? ($provinceId ? \App\Models\Province::find($provinceId)?->name : $user->province_name);
+        $regencyName = $data['regency_name'] ?? ($regencyId ? \App\Models\Regency::find($regencyId)?->name : $user->regency_name);
+        $districtName = $data['district_name'] ?? ($districtId ? \App\Models\District::find($districtId)?->name : $user->district_name);
+
         $itemData = [
             'user_id' => $user->id,
             'category_id' => $data['category_id'],
@@ -66,7 +74,13 @@ class ItemService
             'desired_items' => $data['desired_items'] ?? null,
             'estimated_price' => $data['estimated_price'] ?? null,
             'location' => $data['location'] ?? null,
-            'city' => $data['city'] ?? $user->city,
+            'city' => $data['city'] ?? ($regencyName ?: $user->city),
+            'province_id' => $provinceId,
+            'regency_id' => $regencyId,
+            'district_id' => $districtId,
+            'province_name' => $provinceName,
+            'regency_name' => $regencyName,
+            'district_name' => $districtName,
             'status' => 'active',
             'is_boosted' => false,
             'images' => $imagePaths,
@@ -99,10 +113,31 @@ class ItemService
         }
 
         $updateData = [];
-        foreach (['category_id', 'title', 'description', 'condition', 'desired_items', 'estimated_price', 'location', 'city', 'status'] as $field) {
+        $fields = [
+            'category_id', 'title', 'description', 'condition', 'desired_items',
+            'estimated_price', 'location', 'city', 'status',
+            'province_id', 'regency_id', 'district_id',
+            'province_name', 'regency_name', 'district_name',
+        ];
+        foreach ($fields as $field) {
             if (array_key_exists($field, $data)) {
                 $updateData[$field] = $data[$field];
             }
+        }
+
+        // If regency_id changed but regency_name wasn't supplied
+        if (isset($updateData['regency_id']) && empty($updateData['regency_name'])) {
+            $reg = \App\Models\Regency::find($updateData['regency_id']);
+            $updateData['regency_name'] = $reg?->name;
+            if (empty($updateData['city']) && $reg) {
+                $updateData['city'] = $reg->name;
+            }
+        }
+        if (isset($updateData['province_id']) && empty($updateData['province_name'])) {
+            $updateData['province_name'] = \App\Models\Province::find($updateData['province_id'])?->name;
+        }
+        if (isset($updateData['district_id']) && empty($updateData['district_name'])) {
+            $updateData['district_name'] = \App\Models\District::find($updateData['district_id'])?->name;
         }
 
         if (!empty($newImages)) {

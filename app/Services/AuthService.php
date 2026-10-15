@@ -22,13 +22,27 @@ class AuthService
      */
     public function register(array $data, string $deviceName = 'mobile'): array
     {
+        $provinceId = $data['province_id'] ?? null;
+        $regencyId = $data['regency_id'] ?? null;
+        $districtId = $data['district_id'] ?? null;
+
+        $provinceName = $data['province_name'] ?? ($provinceId ? \App\Models\Province::find($provinceId)?->name : null);
+        $regencyName = $data['regency_name'] ?? ($regencyId ? \App\Models\Regency::find($regencyId)?->name : null);
+        $districtName = $data['district_name'] ?? ($districtId ? \App\Models\District::find($districtId)?->name : null);
+
         $userData = [
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
             'role' => 'user',
             'phone' => $data['phone'] ?? null,
-            'city' => $data['city'] ?? null,
+            'city' => $data['city'] ?? ($regencyName ?? null),
+            'province_id' => $provinceId,
+            'regency_id' => $regencyId,
+            'district_id' => $districtId,
+            'province_name' => $provinceName,
+            'regency_name' => $regencyName,
+            'district_name' => $districtName,
             'avatar' => $data['avatar'] ?? null,
             'is_vip' => false,
             'free_post_quota' => 3,
@@ -63,6 +77,17 @@ class AuthService
         if (!$user || !Hash::check($password, $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Email atau password yang Anda masukkan salah.'],
+            ]);
+        }
+
+        // Block banned accounts from obtaining new tokens
+        if ($user->isBanned()) {
+            $message = 'Akun Anda telah dinonaktifkan oleh Admin AdaBarter.';
+            if ($user->ban_reason) {
+                $message .= ' Alasan: ' . $user->ban_reason;
+            }
+            throw ValidationException::withMessages([
+                'email' => [$message],
             ]);
         }
 

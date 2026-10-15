@@ -89,8 +89,15 @@ class UserReportManagement extends Component
         if ($report->reported_user_id) {
             $user = User::find($report->reported_user_id);
             if ($user) {
-                // Revoke all tokens
+                // Mark account as banned
+                $user->is_banned = true;
+                $user->banned_at = now();
+                $user->ban_reason = 'Pelanggaran aturan komunitas AdaBarter (laporan #' . $report->id . ')';
+                $user->save();
+
+                // Revoke all active tokens
                 $user->tokens()->delete();
+
                 // Moderate all active items of this user
                 Item::where('user_id', $user->id)->where('status', 'active')->update(['status' => 'moderated']);
             }
@@ -102,10 +109,24 @@ class UserReportManagement extends Component
         $report->resolved_at = now();
         $report->save();
 
-        $this->dispatch('notify', message: 'Pengguna terlapor berhasil ditindak (sesi login dicabut & barang dinonaktifkan).');
+        $this->dispatch('notify', message: 'Pengguna berhasil di-ban: akun dinonaktifkan, sesi dicabut, dan barang dimoderasi.');
         if ($this->selectedReport && $this->selectedReport->id === $reportId) {
             $this->selectedReport = $report->fresh(['reporter', 'reportedUser', 'reportable', 'resolver']);
         }
+    }
+
+    public function unbanUser($userId)
+    {
+        $user = User::findOrFail($userId);
+
+        $user->is_banned = false;
+        $user->banned_at = null;
+        $user->ban_reason = null;
+        $user->save();
+
+        Item::where('user_id', $user->id)->where('status', 'moderated')->update(['status' => 'active']);
+
+        $this->dispatch('notify', message: 'Akun pengguna "' . $user->name . '" berhasil di-unban. Mereka kini dapat login dan beraktivitas kembali.');
     }
 
     public function dismissReport($reportId)

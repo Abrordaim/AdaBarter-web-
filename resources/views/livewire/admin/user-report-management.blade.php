@@ -146,9 +146,26 @@
                                         </button>
                                     @endif
 
+                                    @if($report->reportable_type === 'App\Models\User' && $report->reportedUser)
+                                        @if($report->reportedUser->is_banned)
+                                            <span class="px-2 py-1 text-xs font-semibold text-red-700 bg-red-100 rounded-lg">✓ Sudah Di-ban</span>
+                                        @else
+                                            <button wire:click="banUser({{ $report->id }})" wire:confirm="Ban akun '{{ $report->reportedUser->name }}'? Akun akan diblokir dan tidak bisa login." class="px-2 py-1 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+                                                Ban Akun
+                                            </button>
+                                        @endif
+                                    @endif
+
                                     <button wire:click="dismissReport({{ $report->id }})" wire:confirm="Abaikan laporan ini?" class="px-2 py-1 text-xs font-semibold text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors" title="Abaikan / Tolak">
                                         Abaikan
                                     </button>
+                                @else
+                                    {{-- Resolved: show unban button if the user is still banned --}}
+                                    @if($report->reportedUser && $report->reportedUser->is_banned)
+                                        <button wire:click="unbanUser({{ $report->reportedUser->id }})" wire:confirm="Unban akun '{{ $report->reportedUser->name }}'? Mereka akan bisa login kembali." class="px-2 py-1 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+                                            Unban
+                                        </button>
+                                    @endif
                                 @endif
 
                                 <button wire:click="deleteReport({{ $report->id }})" wire:confirm="Hapus data laporan ini?" class="p-1.5 text-gray-400 hover:text-red-600 rounded-lg" title="Hapus Laporan">

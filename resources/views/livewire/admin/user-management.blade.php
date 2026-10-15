@@ -26,7 +26,7 @@
                 <option value="">Semua Role</option>
                 <option value="user">User Biasa</option>
                 <option value="admin">Admin</option>
-                <option value="super_admin">Super Admin</option>
+                <option value="super_admin">Super Admin</option> 
             </select>
         </div>
     </div>

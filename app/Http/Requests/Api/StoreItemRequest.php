@@ -22,6 +22,12 @@ class StoreItemRequest extends FormRequest
             'estimated_price' => ['nullable', 'numeric', 'min:0'],
             'location' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:100'],
+            'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
+            'regency_id' => ['nullable', 'integer', 'exists:regencies,id'],
+            'district_id' => ['nullable', 'integer', 'exists:districts,id'],
+            'province_name' => ['nullable', 'string', 'max:100'],
+            'regency_name' => ['nullable', 'string', 'max:100'],
+            'district_name' => ['nullable', 'string', 'max:100'],
             'images' => ['nullable', 'array', 'max:5'],
             'images.*' => ['image', 'mimes:jpeg,png,jpg,webp', 'max:3072'],
         ];

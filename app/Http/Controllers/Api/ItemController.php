@@ -19,7 +19,7 @@ class ItemController extends BaseApiController
 
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['search', 'category_id', 'city', 'condition']);
+        $filters = $request->only(['search', 'category_id', 'city', 'province_id', 'regency_id', 'district_id', 'condition']);
         $perPage = (int) $request->input('per_page', 15);
 
         $items = $this->itemService->getItems($filters, $perPage);

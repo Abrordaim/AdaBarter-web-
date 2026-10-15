@@ -12,6 +12,7 @@ use App\Repositories\Contracts\OfferRepositoryInterface;
 use App\Repositories\Contracts\ChatRepositoryInterface;
 use App\Repositories\Contracts\VoucherRepositoryInterface;
 use App\Repositories\Contracts\BannerRepositoryInterface;
+use App\Repositories\Contracts\RegionRepositoryInterface;
 
 // Implementations
 use App\Repositories\UserRepository;
@@ -21,6 +22,7 @@ use App\Repositories\OfferRepository;
 use App\Repositories\ChatRepository;
 use App\Repositories\VoucherRepository;
 use App\Repositories\BannerRepository;
+use App\Repositories\RegionRepository;
 
 class RepositoryServiceProvider extends ServiceProvider
 {
@@ -37,6 +39,7 @@ class RepositoryServiceProvider extends ServiceProvider
         ChatRepositoryInterface::class => ChatRepository::class,
         VoucherRepositoryInterface::class => VoucherRepository::class,
         BannerRepositoryInterface::class => BannerRepository::class,
+        RegionRepositoryInterface::class => RegionRepository::class,
     ];
 
     /**

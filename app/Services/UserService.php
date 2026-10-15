@@ -34,6 +34,12 @@ class UserService
             'email' => $user->email,
             'phone' => $user->phone,
             'city' => $user->city,
+            'province_id' => $user->province_id,
+            'province_name' => $user->province_name,
+            'regency_id' => $user->regency_id,
+            'regency_name' => $user->regency_name,
+            'district_id' => $user->district_id,
+            'district_name' => $user->district_name,
             'avatar' => $user->avatar ? url(Storage::url($user->avatar)) : null,
             'role' => $user->role,
             'is_vip' => $user->isVip(),
@@ -73,6 +79,25 @@ class UserService
 
         if (isset($data['city'])) {
             $updateData['city'] = $data['city'];
+        }
+
+        if (array_key_exists('province_id', $data)) {
+            $updateData['province_id'] = $data['province_id'];
+            $updateData['province_name'] = $data['province_name'] ?? ($data['province_id'] ? \App\Models\Province::find($data['province_id'])?->name : null);
+        }
+
+        if (array_key_exists('regency_id', $data)) {
+            $updateData['regency_id'] = $data['regency_id'];
+            $regencyName = $data['regency_name'] ?? ($data['regency_id'] ? \App\Models\Regency::find($data['regency_id'])?->name : null);
+            $updateData['regency_name'] = $regencyName;
+            if (!isset($data['city']) && $regencyName) {
+                $updateData['city'] = $regencyName;
+            }
+        }
+
+        if (array_key_exists('district_id', $data)) {
+            $updateData['district_id'] = $data['district_id'];
+            $updateData['district_name'] = $data['district_name'] ?? ($data['district_id'] ? \App\Models\District::find($data['district_id'])?->name : null);
         }
 
         if ($avatar) {

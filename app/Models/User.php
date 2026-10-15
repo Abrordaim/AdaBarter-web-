@@ -25,6 +25,15 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $city
  * @property string|null $avatar
  * @property bool $is_vip
+ * @property bool $is_banned
+ * @property Carbon|null $banned_at
+ * @property string|null $ban_reason
+ * @property int|null $province_id
+ * @property int|null $regency_id
+ * @property int|null $district_id
+ * @property string|null $province_name
+ * @property string|null $regency_name
+ * @property string|null $district_name
  * @property int $free_post_quota
  * @property int $bonus_post_quota
  * @property Carbon|null $created_at
@@ -35,8 +44,11 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Subscription> $subscriptions
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\Transaction> $transactions
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\VoucherClaim> $voucherClaims
+ * @property-read \App\Models\Province|null $province
+ * @property-read \App\Models\Regency|null $regency
+ * @property-read \App\Models\District|null $district
  */
-#[Fillable(['name', 'email', 'password', 'role', 'phone', 'city', 'avatar', 'is_vip', 'free_post_quota', 'bonus_post_quota'])]
+#[Fillable(['name', 'email', 'password', 'role', 'phone', 'city', 'province_id', 'regency_id', 'district_id', 'province_name', 'regency_name', 'district_name', 'avatar', 'is_vip', 'is_banned', 'banned_at', 'ban_reason', 'free_post_quota', 'bonus_post_quota'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -54,6 +66,11 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_vip' => 'boolean',
+            'is_banned' => 'boolean',
+            'banned_at' => 'datetime',
+            'province_id' => 'integer',
+            'regency_id' => 'integer',
+            'district_id' => 'integer',
         ];
     }
 
@@ -87,6 +104,21 @@ class User extends Authenticatable
         return $this->hasMany(VoucherClaim::class);
     }
 
+    public function province(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Province::class);
+    }
+
+    public function regency(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Regency::class);
+    }
+
+    public function district(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(District::class);
+    }
+
     public function isAdmin(): bool
     {
         return in_array($this->role, ['admin', 'super_admin']);
@@ -100,6 +132,11 @@ class User extends Authenticatable
     public function isVip(): bool
     {
         return $this->is_vip || $this->subscriptions()->active()->exists();
+    }
+
+    public function isBanned(): bool
+    {
+        return (bool) $this->is_banned;
     }
 
     public function remainingPostQuota(): int

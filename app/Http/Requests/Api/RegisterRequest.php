@@ -19,6 +19,12 @@ class RegisterRequest extends FormRequest
             'password' => ['required', 'string', 'min:6'],
             'phone' => ['nullable', 'numeric'],
             'city' => ['nullable', 'string', 'max:100'],
+            'province_id' => ['nullable', 'integer', 'exists:provinces,id'],
+            'regency_id' => ['nullable', 'integer', 'exists:regencies,id'],
+            'district_id' => ['nullable', 'integer', 'exists:districts,id'],
+            'province_name' => ['nullable', 'string', 'max:100'],
+            'regency_name' => ['nullable', 'string', 'max:100'],
+            'district_name' => ['nullable', 'string', 'max:100'],
             'device_name' => ['nullable', 'string', 'max:100'],
         ];
     }

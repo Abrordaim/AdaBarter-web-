@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\BannerController;
 use App\Http\Controllers\Api\MonetizationController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RatingController;
+use App\Http\Controllers\Api\RegionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,6 +24,11 @@ use App\Http\Controllers\Api\RatingController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 
+// Region routes (Indonesian geographic hierarchy)
+Route::get('/regions/provinces', [RegionController::class, 'provinces']);
+Route::get('/regions/provinces/{provinceId}/regencies', [RegionController::class, 'regencies']);
+Route::get('/regions/regencies/{regencyId}/districts', [RegionController::class, 'districts']);
+
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/items', [ItemController::class, 'index']);
 Route::get('/items/cities', [ItemController::class, 'cities']); // Must be before /items/{id}
@@ -33,7 +39,8 @@ Route::get('/users/{id}/ratings', [RatingController::class, 'userRatings']);
 Route::get('/users/{id}', [UserController::class, 'show']);
 
 // Protected routes (Sanctum Token required)
-Route::middleware(['auth:sanctum'])->group(function () {
+// check_banned: blocks API access if user account has been banned by admin
+Route::middleware(['auth:sanctum', 'check_banned'])->group(function () {
     // Auth & Profile
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);

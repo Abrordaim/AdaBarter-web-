@@ -14,8 +14,10 @@ class ItemRepository extends BaseRepository implements ItemRepositoryInterface
 
     public function getPaginated(array $filters = [], int $perPage = 15)
     {
-        $query = $this->model->with(['user:id,name,city,avatar,is_vip', 'category:id,name,slug,icon'])
-            ->where('status', 'active');
+        $query = $this->model->with([
+            'user:id,name,city,province_id,regency_id,district_id,province_name,regency_name,district_name,avatar,is_vip',
+            'category:id,name,slug,icon'
+        ])->where('status', 'active');
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
@@ -28,6 +30,18 @@ class ItemRepository extends BaseRepository implements ItemRepositoryInterface
 
         if (!empty($filters['category_id'])) {
             $query->where('category_id', $filters['category_id']);
+        }
+
+        if (!empty($filters['province_id'])) {
+            $query->where('province_id', $filters['province_id']);
+        }
+
+        if (!empty($filters['regency_id'])) {
+            $query->where('regency_id', $filters['regency_id']);
+        }
+
+        if (!empty($filters['district_id'])) {
+            $query->where('district_id', $filters['district_id']);
         }
 
         if (!empty($filters['city'])) {
@@ -58,9 +72,11 @@ class ItemRepository extends BaseRepository implements ItemRepositoryInterface
 
     public function findActive(int $id)
     {
-        return $this->model->with(['user:id,name,city,avatar,is_vip', 'category:id,name,slug,icon'])
-            ->where('status', 'active')
-            ->find($id);
+        return $this->model->with([
+            'user:id,name,city,province_id,regency_id,district_id,province_name,regency_name,district_name,avatar,is_vip',
+            'category:id,name,slug,icon'
+        ])->where('status', 'active')
+          ->find($id);
     }
 
     public function countActiveByUserId(int $userId): int
