@@ -18,6 +18,7 @@ class StoreOfferRequest extends FormRequest
             'offerer_item_ids.*' => ['integer', 'exists:items,id'],
             'offerer_item_id'    => ['required_without:offerer_item_ids', 'nullable', 'integer', 'exists:items,id'],
             'target_item_id'     => ['required', 'integer', 'exists:items,id'],
+            'payment_method'     => ['nullable', 'string', 'in:cod,gateway'],
             'cash_supplement'    => ['nullable', 'numeric', 'min:0'],
             'cash_supplement_by' => ['nullable', 'string', 'in:offerer,target_owner'],
         ];

@@ -25,5 +25,7 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('/categories', \App\Livewire\Admin\CategoryManagement::class)->name('categories');
     Route::get('/reports', \App\Livewire\Admin\ReportPanel::class)->name('reports');
     Route::get('/user-reports', \App\Livewire\Admin\UserReportManagement::class)->name('user-reports');
+    Route::get('/disputes', \App\Livewire\Admin\DisputeManagement::class)->name('disputes');
+    Route::get('/withdrawals', \App\Livewire\Admin\WithdrawalManagement::class)->name('withdrawals');
     Route::get('/settings', \App\Livewire\Admin\SystemSettings::class)->name('settings');
 });

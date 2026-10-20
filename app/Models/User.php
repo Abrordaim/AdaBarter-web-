@@ -119,6 +119,21 @@ class User extends Authenticatable
         return $this->belongsTo(District::class);
     }
 
+    public function wallet(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Wallet::class);
+    }
+
+    public function withdrawals(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Withdrawal::class);
+    }
+
+    public function getOrCreateWallet(): Wallet
+    {
+        return $this->wallet()->firstOrCreate([], ['balance' => 0]);
+    }
+
     public function isAdmin(): bool
     {
         return in_array($this->role, ['admin', 'super_admin']);

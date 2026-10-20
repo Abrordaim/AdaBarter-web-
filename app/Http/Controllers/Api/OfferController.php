@@ -121,4 +121,88 @@ class OfferController extends BaseApiController
             return $this->sendError('Gagal membatalkan penawaran: ' . $e->getMessage(), [], 400);
         }
     }
+
+    public function pay(Request $request, int $id, \App\Services\PaymentService $paymentService): JsonResponse
+    {
+        try {
+            $offer = $this->offerService->getOfferDetail($request->user(), $id);
+            $result = $paymentService->createSnapToken($request->user(), $offer);
+
+            return $this->sendResponse(
+                $result,
+                'Snap token pembayaran selisih berhasil dibuat.'
+            );
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return $this->sendError($e->getMessage(), [], 403);
+        } catch (\Throwable $e) {
+            return $this->sendError('Gagal memproses pembayaran: ' . $e->getMessage(), [], 400);
+        }
+    }
+
+    public function confirm(Request $request, int $id, \App\Services\EscrowService $escrowService): JsonResponse
+    {
+        try {
+            $offer = $this->offerService->getOfferDetail($request->user(), $id);
+            $handoverCode = $request->input('handover_code');
+
+            $result = $escrowService->confirmReceived($request->user(), $offer, $handoverCode);
+
+            return $this->sendResponse([
+                'offer' => new OfferResource($result['offer']),
+                'is_released' => $result['is_released'],
+            ], $result['message']);
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return $this->sendError($e->getMessage(), [], 403);
+        } catch (\Throwable $e) {
+            return $this->sendError($e->getMessage(), [], 400);
+        }
+    }
+
+    public function dispute(Request $request, int $id, \App\Services\EscrowService $escrowService): JsonResponse
+    {
+        $request->validate([
+            'reason' => 'required|string|max:100',
+            'description' => 'required|string|min:10',
+            'evidence' => 'nullable',
+            'evidence.*' => 'image|mimes:jpeg,png,jpg,webp|max:5120',
+        ]);
+
+        try {
+            $offer = $this->offerService->getOfferDetail($request->user(), $id);
+
+            $evidencePaths = [];
+            if ($request->hasFile('evidence')) {
+                $files = is_array($request->file('evidence')) ? $request->file('evidence') : [$request->file('evidence')];
+                foreach ($files as $file) {
+                    $evidencePaths[] = $file->store('disputes', 'public');
+                }
+            }
+
+            $dispute = $escrowService->openDispute(
+                $request->user(),
+                $offer,
+                $request->input('reason'),
+                $request->input('description'),
+                $evidencePaths
+            );
+
+            return $this->sendResponse([
+                'dispute' => [
+                    'id' => $dispute->id,
+                    'offer_id' => $dispute->offer_id,
+                    'reason' => $dispute->reason,
+                    'description' => $dispute->description,
+                    'evidence_paths' => $dispute->evidence_paths,
+                    'status' => $dispute->status,
+                    'created_at' => $dispute->created_at?->toISOString(),
+                ],
+                'offer' => new OfferResource($offer->fresh(['payer', 'receiver', 'targetItem', 'offererItems'])),
+            ], 'Sengketa barter berhasil diajukan. Penahanan dana telah dibekukan.');
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            return $this->sendError($e->getMessage(), [], 403);
+        } catch (\Throwable $e) {
+            return $this->sendError($e->getMessage(), [], 400);
+        }
+    }
 }
+

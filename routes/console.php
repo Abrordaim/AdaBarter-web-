@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 if (class_exists(\Illuminate\Foundation\DevCommands::class)) {
     \Illuminate\Foundation\DevCommands::artisan('serve --host=0.0.0.0 --port=8000', 'server');
 }
+
+// Scheduled tasks for Escrow
+\Illuminate\Support\Facades\Schedule::command('escrow:auto-release')->hourly();
+\Illuminate\Support\Facades\Schedule::command('escrow:expire-unpaid')->hourly();

@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\MonetizationController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RatingController;
 use App\Http\Controllers\Api\RegionController;
+use App\Http\Controllers\Api\PaymentWebhookController;
 
 /*
 |--------------------------------------------------------------------------
@@ -23,6 +24,9 @@ use App\Http\Controllers\Api\RegionController;
 // Public routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
+// Payment Gateway Webhook (Midtrans notifications, protected by signature verification)
+Route::post('/payments/midtrans/notification', [PaymentWebhookController::class, 'handle']);
 
 // Region routes (Indonesian geographic hierarchy)
 Route::get('/regions/provinces', [RegionController::class, 'provinces']);
@@ -63,6 +67,9 @@ Route::middleware(['auth:sanctum', 'check_banned'])->group(function () {
     Route::post('/offers/{id}/reject', [OfferController::class, 'reject']);
     Route::post('/offers/{id}/complete', [OfferController::class, 'complete']);
     Route::post('/offers/{id}/cancel', [OfferController::class, 'cancel']);
+    Route::post('/offers/{id}/pay', [OfferController::class, 'pay']);
+    Route::post('/offers/{id}/confirm', [OfferController::class, 'confirm']);
+    Route::post('/offers/{id}/dispute', [OfferController::class, 'dispute']);
 
     // Chats (Negotiation room tied to matched offers)
     Route::get('/chats', [ChatController::class, 'conversations']);
@@ -77,6 +84,11 @@ Route::middleware(['auth:sanctum', 'check_banned'])->group(function () {
     Route::post('/monetization/items/{id}/boost', [MonetizationController::class, 'boost']);
     Route::post('/monetization/quota/purchase', [MonetizationController::class, 'purchaseQuota']);
     Route::get('/monetization/transactions', [MonetizationController::class, 'transactions']);
+
+    // Wallet & Withdrawal
+    Route::get('/wallet', [\App\Http\Controllers\Api\WalletController::class, 'index']);
+    Route::post('/wallet/withdraw', [\App\Http\Controllers\Api\WalletController::class, 'withdraw']);
+    Route::get('/wallet/withdrawals', [\App\Http\Controllers\Api\WalletController::class, 'withdrawals']);
 
     // Reports & Complaints
     Route::post('/reports', [ReportController::class, 'store']);

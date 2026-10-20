@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY', 'SB-Mid-server-dummy-key-adabarter'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY', 'SB-Mid-client-dummy-key-adabarter'),
+        'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
+        'is_sanitized' => env('MIDTRANS_IS_SANITIZED', true),
+        'is_3ds' => env('MIDTRANS_IS_3DS', true),
+        'confirm_deadline_hours' => (int) env('ESCROW_CONFIRM_DEADLINE_HOURS', 48),
+    ],
+
 ];

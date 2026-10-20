@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\EscrowStatus;
 use App\Models\Chat;
 use App\Models\Item;
 use App\Models\Offer;
@@ -121,7 +122,9 @@ class OfferService
             }
         }
 
-        return DB::transaction(function () use ($user, $offererItems, $offererItemIds, $targetItem, $targetItemId, $cashSupplement, $cashSupplementBy) {
+        $paymentMethod = $data['payment_method'] ?? 'cod';
+
+        return DB::transaction(function () use ($user, $offererItems, $offererItemIds, $targetItem, $targetItemId, $cashSupplement, $cashSupplementBy, $paymentMethod) {
             $primaryOffererItemId = $offererItemIds[0];
 
             $offerData = [
@@ -129,6 +132,7 @@ class OfferService
                 'offerer_item_id'    => $primaryOffererItemId,
                 'target_user_id'     => $targetItem->user_id,
                 'target_item_id'     => $targetItemId,
+                'payment_method'     => $paymentMethod,
                 'cash_supplement'    => $cashSupplement,
                 'cash_supplement_by' => $cashSupplementBy,
                 'status'             => 'pending',
@@ -145,6 +149,16 @@ class OfferService
                 $attachData[$itemId] = ['role' => 'offerer'];
             }
             $offer->offererItems()->sync($attachData);
+
+            // Hitung selisih harga dan tentukan pihak payer / receiver
+            $parties = $offer->calculatePriceDifferenceAndParties();
+            $offer->update([
+                'price_difference'  => $parties['price_difference'],
+                'payer_id'          => $parties['payer_id'],
+                'receiver_id'       => $parties['receiver_id'],
+                'handover_code'     => str_pad((string) random_int(100000, 999999), 6, '0', STR_PAD_LEFT),
+                'handover_attempts' => 0,
+            ]);
 
             return $offer->load(['offererItems', 'offererItem', 'targetItem', 'offerer', 'targetOwner']);
         });
@@ -176,11 +190,17 @@ class OfferService
         }
 
         return DB::transaction(function () use ($offer) {
-            $updated = $this->offerRepository->update($offer->id, [
+            $updateData = [
                 'target_approved' => true,
                 'status' => 'matched',
                 'matched_at' => now(),
-            ]);
+            ];
+
+            if ($offer->isEscrow() && $offer->price_difference > 0) {
+                $updateData['escrow_status'] = EscrowStatus::WAITING_PAYMENT;
+            }
+
+            $updated = $this->offerRepository->update($offer->id, $updateData);
 
             // Create initial system message to start the negotiation room
             Chat::create([
