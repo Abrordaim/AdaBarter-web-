@@ -126,7 +126,8 @@ class OfferController extends BaseApiController
     {
         try {
             $offer = $this->offerService->getOfferDetail($request->user(), $id);
-            $result = $paymentService->createSnapToken($request->user(), $offer);
+            $voucherClaimId = $request->input('voucher_claim_id') ? (int) $request->input('voucher_claim_id') : null;
+            $result = $paymentService->createSnapToken($request->user(), $offer, $voucherClaimId);
 
             return $this->sendResponse(
                 $result,

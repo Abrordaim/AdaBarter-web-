@@ -26,18 +26,42 @@ class VoucherRepository extends BaseRepository implements VoucherRepositoryInter
             ->exists();
     }
 
-    public function recordClaim(int $voucherId, int $userId): bool
+    public function recordClaim(int $voucherId, int $userId): VoucherClaim
     {
         return DB::transaction(function () use ($voucherId, $userId) {
-            VoucherClaim::create([
+            $claim = VoucherClaim::create([
                 'voucher_id' => $voucherId,
                 'user_id' => $userId,
                 'claimed_at' => now(),
+                'is_used' => false,
             ]);
 
             $this->model->where('id', $voucherId)->increment('claimed_count');
 
-            return true;
+            return $claim->load('voucher');
         });
+    }
+
+    public function getAvailablePublicVouchers(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->model->newQuery()
+            ->public()
+            ->available()
+            ->latest()
+            ->get();
+    }
+
+    public function getUserVouchers(int $userId, ?string $status = null): \Illuminate\Database\Eloquent\Collection
+    {
+        $query = VoucherClaim::with('voucher')
+            ->where('user_id', $userId);
+
+        if ($status === 'active') {
+            $query->available();
+        } elseif ($status === 'used') {
+            $query->used();
+        }
+
+        return $query->latest('claimed_at')->get();
     }
 }

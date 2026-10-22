@@ -120,10 +120,11 @@
     {{-- ───────────── VOUCHERS TAB ───────────── --}}
     @if($activeTab === 'vouchers')
         <div>
-            <div class="mb-4">
+            <div class="mb-4 flex items-center justify-between">
+                <p class="text-sm text-gray-500">Kelola voucher promo potongan harga selisih barter (Rekening Bersama / Midtrans).</p>
                 <button wire:click="createVoucher"
                     class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium">
-                    + Create Voucher
+                    + Tambah Voucher Diskon
                 </button>
             </div>
 
@@ -132,36 +133,79 @@
                     <table class="w-full text-sm text-left text-gray-500">
                         <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3">Code</th>
-                                <th class="px-6 py-3 text-center">Quota Added</th>
-                                <th class="px-6 py-3 text-center">Claims</th>
-                                <th class="px-6 py-3">Status</th>
-                                <th class="px-6 py-3">Expiry</th>
-                                <th class="px-6 py-3 text-right">Actions</th>
+                                <th class="px-6 py-3">Kode Voucher</th>
+                                <th class="px-6 py-3 text-center">Distribusi</th>
+                                <th class="px-6 py-3 text-center">Tipe Diskon</th>
+                                <th class="px-6 py-3 text-right">Potongan</th>
+                                <th class="px-6 py-3 text-right">Min. Transaksi</th>
+                                <th class="px-6 py-3 text-center">Klaim Terpakai</th>
+                                <th class="px-6 py-3 text-center">Status</th>
+                                <th class="px-6 py-3">Masa Berlaku</th>
+                                <th class="px-6 py-3 text-right">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
                             @forelse($vouchers as $voucher)
                                 <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 font-bold text-gray-900">{{ $voucher->code }}</td>
-                                    <td class="px-6 py-4 text-center text-emerald-600 font-medium">+{{ $voucher->quota_amount }}</td>
-                                    <td class="px-6 py-4 text-center">{{ $voucher->claimed_count }} / {{ $voucher->max_claims }}</td>
                                     <td class="px-6 py-4">
+                                        <div class="font-bold text-gray-900 tracking-wider uppercase">{{ $voucher->code }}</div>
+                                        @if($voucher->description)
+                                            <div class="text-xs text-gray-500 truncate max-w-xs">{{ $voucher->description }}</div>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        @if($voucher->distribution === 'public')
+                                            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
+                                                Publik (1-Tap)
+                                            </span>
+                                        @else
+                                            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
+                                                Privat (Kode)
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="px-2 py-0.5 rounded text-xs font-medium {{ $voucher->type === 'percentage' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800' }}">
+                                            {{ $voucher->type === 'percentage' ? 'Persentase' : 'Nominal Tetap' }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-right font-bold text-emerald-600">
+                                        {{ $voucher->formattedDiscount() }}
+                                    </td>
+                                    <td class="px-6 py-4 text-right font-medium text-gray-700">
+                                        {{ $voucher->min_transaction_amount > 0 ? 'Rp ' . number_format($voucher->min_transaction_amount, 0, ',', '.') : 'Tanpa Min.' }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center text-xs font-semibold text-gray-600">
+                                        {{ $voucher->claimed_count }} / {{ $voucher->max_claims }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
                                         <button wire:click="toggleVoucher({{ $voucher->id }})"
                                             class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $voucher->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
-                                            {{ $voucher->is_active ? 'Active' : 'Inactive' }}
+                                            {{ $voucher->is_active ? 'Aktif' : 'Nonaktif' }}
                                         </button>
                                     </td>
-                                    <td class="px-6 py-4 text-xs">
-                                        {{ $voucher->expired_at ? $voucher->expired_at->format('d M Y') : 'Never' }}
+                                    <td class="px-6 py-4 text-xs text-gray-600">
+                                        {{ $voucher->expired_at ? $voucher->expired_at->format('d M Y H:i') : 'Selamanya' }}
                                     </td>
                                     <td class="px-6 py-4 text-right">
-                                        <span class="text-gray-400 text-xs">-</span>
+                                        <div class="flex justify-end gap-2">
+                                            <button wire:click="editVoucher({{ $voucher->id }})"
+                                                class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium">
+                                                Edit
+                                            </button>
+                                            <button wire:click="deleteVoucher({{ $voucher->id }})"
+                                                wire:confirm="Hapus voucher ini?"
+                                                class="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium">
+                                                Hapus
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="px-6 py-4 text-center">No vouchers found.</td>
+                                    <td colspan="9" class="px-6 py-8 text-center text-gray-400">
+                                        Belum ada voucher diskon. Klik "+ Tambah Voucher Diskon" untuk membuat baru.
+                                    </td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -435,53 +479,135 @@
     {{-- Voucher Modal --}}
     @if($showVoucherModal)
         <div class="fixed inset-0 z-100 overflow-y-auto bg-gray-900/75 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl text-left overflow-hidden shadow-xl sm:max-w-md w-full">
+            <div class="bg-white rounded-xl text-left overflow-hidden shadow-xl sm:max-w-lg w-full">
                 <form wire:submit="saveVoucher">
                     <div class="bg-white px-6 pt-6 pb-4 space-y-4">
-                        <h3 class="text-lg font-medium text-gray-900">{{ $voucherId ? 'Edit Voucher' : 'Create Voucher' }}</h3>
+                        <h3 class="text-lg font-semibold text-gray-900">
+                            {{ $voucherId ? 'Edit Voucher Diskon' : 'Tambah Voucher Diskon Baru' }}
+                        </h3>
 
+                        {{-- Metode Distribusi / Klaim --}}
                         <div>
-                            <label class="block text-sm font-medium text-gray-700">Code</label>
-                            <input type="text" wire:model="code"
-                                class="mt-1 block w-full border border-gray-300 rounded-md p-2 uppercase">
-                            @error('code') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                                Metode Distribusi / Klaim Pengguna
+                            </label>
+                            <div class="grid grid-cols-2 gap-3 mt-1">
+                                <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition {{ $distribution === 'public' ? 'border-emerald-600 bg-emerald-50 text-emerald-900 font-medium' : 'border-gray-200 text-gray-700' }}">
+                                    <input type="radio" wire:model.live="distribution" value="public" class="text-emerald-600 focus:ring-emerald-500">
+                                    <div>
+                                        <div class="text-sm font-bold">Publik (1-Tap)</div>
+                                        <div class="text-xs text-gray-500">Tampil di daftar voucher & bisa diklaim langsung</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition {{ $distribution === 'private' ? 'border-purple-600 bg-purple-50 text-purple-900 font-medium' : 'border-gray-200 text-gray-700' }}">
+                                    <input type="radio" wire:model.live="distribution" value="private" class="text-purple-600 focus:ring-purple-500">
+                                    <div>
+                                        <div class="text-sm font-bold">Privat (Kode Promo)</div>
+                                        <div class="text-xs text-gray-500">Hanya bisa diklaim via input kode rahasia</div>
+                                    </div>
+                                </label>
+                            </div>
+                            @error('distribution') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Description</label>
-                            <input type="text" wire:model="description"
-                                class="mt-1 block w-full border border-gray-300 rounded-md p-2">
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
+                        {{-- Kode & Deskripsi --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Quota Given</label>
-                                <input type="number" wire:model="quota_amount"
-                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2">
-                                @error('quota_amount') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                <label class="block text-sm font-medium text-gray-700">Kode Promo Voucher</label>
+                                <input type="text" wire:model="code" placeholder="contoh: HEMAT50K"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2 uppercase font-bold tracking-wider">
+                                @error('code') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700">Max Claims</label>
-                                <input type="number" wire:model="max_claims"
+                                <label class="block text-sm font-medium text-gray-700">Deskripsi Singkat</label>
+                                <input type="text" wire:model="description" placeholder="contoh: Diskon selisih barter akhir pekan"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm">
+                                @error('description') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        {{-- Tipe Potongan Diskon --}}
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                                Tipe Potongan Harga
+                            </label>
+                            <div class="flex gap-4 mt-1">
+                                <label class="inline-flex items-center gap-2 cursor-pointer text-sm">
+                                    <input type="radio" wire:model.live="discount_type" value="fixed" class="text-emerald-600 focus:ring-emerald-500">
+                                    <span>Nominal Tetap (Rp)</span>
+                                </label>
+                                <label class="inline-flex items-center gap-2 cursor-pointer text-sm">
+                                    <input type="radio" wire:model.live="discount_type" value="percentage" class="text-emerald-600 focus:ring-emerald-500">
+                                    <span>Persentase (%)</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {{-- Parameter Diskon --}}
+                        @if($discount_type === 'fixed')
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Besaran Potongan (Rp)</label>
+                                <input type="number" wire:model="discount_amount" min="1000" step="1000" placeholder="50000"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                                @error('discount_amount') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        @else
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Diskon (%)</label>
+                                    <input type="number" wire:model="percentage" min="1" max="100" placeholder="20"
+                                        class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                                    @error('percentage') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">Maks. Potongan (Rp, opsional)</label>
+                                    <input type="number" wire:model="max_discount_amount" min="1000" step="1000" placeholder="75000"
+                                        class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                                    @error('max_discount_amount') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        @endif
+
+                        {{-- Syarat Minimal Transaksi & Kuota --}}
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Min. Selisih Barter (Rp)</label>
+                                <input type="number" wire:model="min_transaction_amount" min="0" step="5000" placeholder="100000"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                                <span class="text-xs text-gray-500">Isi 0 jika tanpa batas minimum</span>
+                                @error('min_transaction_amount') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Batas Kuota Klaim</label>
+                                <input type="number" wire:model="max_claims" min="1" placeholder="100"
                                     class="mt-1 block w-full border border-gray-300 rounded-md p-2">
                                 @error('max_claims') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Expiry Date (Optional)</label>
-                            <input type="datetime-local" wire:model="expired_at"
-                                class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                        {{-- Masa Berlaku & Status --}}
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Batas Masa Berlaku (Opsional)</label>
+                                <input type="datetime-local" wire:model="expired_at"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm">
+                            </div>
+                            <div class="pt-5">
+                                <label class="inline-flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700">
+                                    <input type="checkbox" wire:model="is_active" class="rounded text-emerald-600 focus:ring-emerald-500 h-4 w-4">
+                                    <span>Voucher Aktif & Dapat Digunakan</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3">
                         <button type="submit"
                             class="inline-flex justify-center rounded-md px-4 py-2 bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700">
-                            Save
+                            Simpan Voucher
                         </button>
                         <button type="button" wire:click="$set('showVoucherModal', false)"
                             class="inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                            Cancel
+                            Batal
                         </button>
                     </div>
                 </form>

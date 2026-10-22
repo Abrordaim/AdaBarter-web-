@@ -112,7 +112,7 @@
 
     <!-- Modal -->
     @if($selectedWithdrawal)
-        <div class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="fixed inset-0 z-50 overflow-y-auto bg-black/70 flex items-center justify-center p-4">
             <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl overflow-hidden border border-gray-100">
                 <!-- Header -->
                 <div class="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
@@ -196,7 +196,7 @@
                         <button wire:click="approve"
                             wire:confirm="Tandai penarikan ini sebagai LUNAS? Pastikan transfer bank sudah dilakukan."
                             class="px-4 py-2 text-xs font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 shadow-sm">
-                            ✓ Tandai Lunas (Sudah Transfer)
+                            Tandai Lunas (Sudah Transfer)
                         </button>
                     @endif
                 </div>

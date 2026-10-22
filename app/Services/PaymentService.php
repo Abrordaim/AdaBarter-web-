@@ -7,7 +7,7 @@ use App\Models\Offer;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\WebhookLog;
-use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\Access\AuthorizationException; 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -18,7 +18,8 @@ use RuntimeException;
 class PaymentService
 {
     public function __construct(
-        protected EscrowStateMachine $stateMachine
+        protected EscrowStateMachine $stateMachine,
+        protected VoucherService $voucherService
     ) {
         $this->configureMidtrans();
     }
@@ -41,10 +42,11 @@ class PaymentService
      *
      * @param User $user
      * @param Offer $offer
-     * @return array{token: string, order_id: string, gross_amount: int, redirect_url: string}
+     * @param int|null $voucherClaimId
+     * @return array{token: string, order_id: string, gross_amount: int, original_amount: int, discount_amount: int, redirect_url: string}
      * @throws AuthorizationException
      */
-    public function createSnapToken(User $user, Offer $offer): array
+    public function createSnapToken(User $user, Offer $offer, ?int $voucherClaimId = null): array
     {
         // 1. Otorisasi: Hanya payer yang berhak membuat transaksi pembayaran
         if ($offer->payer_id !== $user->id) {
@@ -62,15 +64,32 @@ class PaymentService
         }
 
         // 4. Pastikan nominal selisih valid dari server (BUKAN dari request client)
-        $grossAmount = (int) $offer->price_difference;
-        if ($grossAmount <= 0) {
+        $originalAmount = (int) $offer->price_difference;
+        if ($originalAmount <= 0) {
             throw new InvalidArgumentException('Nominal selisih barter harus lebih dari Rp 0.');
         }
 
-        // 5. Generate Order ID unik dan tidak dapat ditebak
+        // 5. Validasi dan hitung diskon jika ada voucher yang digunakan
+        $discountAmount = 0;
+        $grossAmount = $originalAmount;
+        $voucherCode = null;
+
+        if (!empty($voucherClaimId)) {
+            $voucherData = $this->voucherService->validateVoucherForOffer($user, $voucherClaimId, $offer);
+            $discountAmount = $voucherData['discount_amount'];
+            $grossAmount = $voucherData['gross_amount'];
+            $voucherCode = $voucherData['voucher']->code;
+        }
+
+        // 6. Generate Order ID unik dan tidak dapat ditebak
         $orderId = 'BRT-' . $offer->id . '-' . Str::lower(Str::random(8));
 
-        // 6. Buat Snap Token via Midtrans SDK
+        $itemName = 'Selisih Barter #' . $offer->id;
+        if ($discountAmount > 0 && $voucherCode) {
+            $itemName .= ' (Diskon ' . $voucherCode . ')';
+        }
+
+        // 7. Buat parameter transaksi Midtrans Snap
         $params = [
             'transaction_details' => [
                 'order_id' => $orderId,
@@ -86,29 +105,35 @@ class PaymentService
                     'id' => 'OFFER-' . $offer->id,
                     'price' => $grossAmount,
                     'quantity' => 1,
-                    'name' => 'Selisih Barter #' . $offer->id,
+                    'name' => mb_substr($itemName, 0, 50),
                 ],
             ],
         ];
 
-        // 6. Buat Snap Token via Midtrans SDK (atau mock instant saat running unit test)
+        // 8. Buat Snap Token via Midtrans SDK (atau mock instant saat running unit test)
         if (app()->runningUnitTests()) {
             $snapToken = 'mock-snap-token-' . Str::random(24);
         } else {
             try {
-                Config::$curlOptions[CURLOPT_TIMEOUT] = 5;
-                Config::$curlOptions[CURLOPT_CONNECTTIMEOUT] = 3;
+                Config::$curlOptions = [];
                 $snapToken = Snap::getSnapToken($params);
             } catch (\Throwable $e) {
-                // Fallback simulasi untuk testing lingkungan offline
-                $snapToken = 'dummy-snap-token-' . Str::random(24);
+                \Illuminate\Support\Facades\Log::error('Midtrans Snap Error: ' . $e->getMessage(), [
+                    'order_id' => $orderId,
+                    'params'   => $params,
+                ]);
+
+                throw new RuntimeException('Gagal membuat transaksi Midtrans: ' . $e->getMessage(), previous: $e);
             }
         }
 
-        // 7. Simpan catatan pembayaran ke tabel payments
+        // 9. Simpan catatan pembayaran ke tabel payments
         Payment::create([
             'offer_id' => $offer->id,
+            'voucher_claim_id' => $voucherClaimId,
             'order_id' => $orderId,
+            'original_amount' => $originalAmount,
+            'discount_amount' => $discountAmount,
             'gross_amount' => $grossAmount,
             'gateway' => 'midtrans',
             'status' => 'pending',
@@ -122,6 +147,8 @@ class PaymentService
         return [
             'token' => $snapToken,
             'order_id' => $orderId,
+            'original_amount' => $originalAmount,
+            'discount_amount' => $discountAmount,
             'gross_amount' => $grossAmount,
             'redirect_url' => $redirectUrl,
         ];
@@ -201,6 +228,15 @@ class PaymentService
                     'paid_at' => now(),
                 ]);
 
+                // Tandai voucher telah digunakan jika pembayaran berhasil
+                if ($lockedPayment->voucher_claim_id) {
+                    \App\Models\VoucherClaim::where('id', $lockedPayment->voucher_claim_id)->update([
+                        'is_used' => true,
+                        'used_at' => now(),
+                        'offer_id' => $offer->id,
+                    ]);
+                }
+
                 // Transisi escrow: HELD (dana tertahan) -> WAITING_CONFIRMATION (menunggu serah terima)
                 $this->stateMachine->transition($offer, EscrowStatus::HELD);
 
@@ -225,6 +261,15 @@ class PaymentService
                     'gateway_transaction_id' => $payload['transaction_id'] ?? null,
                     'raw_payload' => $payload,
                 ]);
+
+                // Lepaskan status voucher jika ada
+                if ($lockedPayment->voucher_claim_id) {
+                    \App\Models\VoucherClaim::where('id', $lockedPayment->voucher_claim_id)->update([
+                        'is_used' => false,
+                        'used_at' => null,
+                        'offer_id' => null,
+                    ]);
+                }
 
                 // Jika offer masih WAITING_PAYMENT, tandai EXPIRED
                 if ($offer->escrow_status === EscrowStatus::WAITING_PAYMENT) {

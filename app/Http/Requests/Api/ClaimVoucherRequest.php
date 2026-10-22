@@ -14,7 +14,8 @@ class ClaimVoucherRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'code' => ['required', 'string', 'max:50'],
+            'code' => ['nullable', 'string', 'max:50', 'required_without:voucher_id'],
+            'voucher_id' => ['nullable', 'integer', 'exists:vouchers,id', 'required_without:code'],
         ];
     }
 }

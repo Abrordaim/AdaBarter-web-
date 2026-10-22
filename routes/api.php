@@ -76,7 +76,9 @@ Route::middleware(['auth:sanctum', 'check_banned'])->group(function () {
     Route::get('/offers/{offerId}/chats', [ChatController::class, 'messages']);
     Route::post('/offers/{offerId}/chats', [ChatController::class, 'send']);
 
-    // Vouchers (Claim quota)
+    // Vouchers (Claim & List)
+    Route::get('/vouchers/available', [VoucherController::class, 'available']);
+    Route::get('/vouchers/my', [VoucherController::class, 'myVouchers']);
     Route::post('/vouchers/claim', [VoucherController::class, 'claim']);
 
     // Monetization (VIP, Boost, Quota Purchase, Transactions)

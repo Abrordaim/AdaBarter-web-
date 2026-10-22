@@ -39,7 +39,7 @@ class EscrowStateMachine
         ],
         EscrowStatus::COMPLETED->value => [],
         EscrowStatus::REFUNDED->value => [],
-        EscrowStatus::EXPIRED->value => [],
+        EscrowStatus::EXPIRED->value => [], 
     ];
 
     /**

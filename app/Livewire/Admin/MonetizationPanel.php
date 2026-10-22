@@ -28,14 +28,19 @@ class MonetizationPanel extends Component
     public string $txStatusFilter = '';
 
     // ─── Voucher form ────────────────────────────────────────────────
-    public bool    $showVoucherModal = false;
-    public ?int    $voucherId        = null;
-    public string  $code             = '';
-    public string  $description      = '';
-    public ?int    $quota_amount     = null;
-    public ?int    $max_claims       = null;
-    public ?string $expired_at       = null;
-    public bool    $is_active        = true;
+    public bool    $showVoucherModal       = false;
+    public ?int    $voucherId              = null;
+    public string  $code                   = '';
+    public string  $description            = '';
+    public string  $distribution           = 'public'; // 'public' | 'private'
+    public string  $discount_type          = 'fixed';  // 'fixed' | 'percentage'
+    public ?int    $discount_amount        = null;     // nominal Rp
+    public ?int    $percentage             = null;     // 1 - 100
+    public ?int    $max_discount_amount    = null;     // cap for percentage
+    public int     $min_transaction_amount = 0;        // min price difference
+    public ?int    $max_claims             = null;
+    public ?string $expired_at             = null;
+    public bool    $is_active              = true;
 
     // ─── Slot Package form ───────────────────────────────────────────
     public bool    $showSlotModal  = false;
@@ -107,37 +112,80 @@ class MonetizationPanel extends Component
     public function createVoucher(): void
     {
         $this->resetValidation();
-        $this->reset(['voucherId', 'code', 'description', 'quota_amount', 'max_claims', 'expired_at']);
-        $this->is_active       = true;
-        $this->showVoucherModal = true;
+        $this->reset([
+            'voucherId', 'code', 'description', 'distribution',
+            'discount_type', 'discount_amount', 'percentage',
+            'max_discount_amount', 'min_transaction_amount',
+            'max_claims', 'expired_at'
+        ]);
+        $this->distribution           = 'public';
+        $this->discount_type          = 'fixed';
+        $this->min_transaction_amount = 0;
+        $this->is_active              = true;
+        $this->showVoucherModal       = true;
+    }
+
+    public function editVoucher(int $id): void
+    {
+        $voucher = Voucher::findOrFail($id);
+        $this->resetValidation();
+        $this->voucherId              = $voucher->id;
+        $this->code                   = $voucher->code;
+        $this->description            = $voucher->description ?? '';
+        $this->distribution           = $voucher->distribution ?? 'public';
+        $this->discount_type          = $voucher->type ?? 'fixed';
+        $this->discount_amount        = $voucher->discount_amount;
+        $this->percentage             = $voucher->percentage;
+        $this->max_discount_amount    = $voucher->max_discount_amount;
+        $this->min_transaction_amount = (int) ($voucher->min_transaction_amount ?? 0);
+        $this->max_claims             = $voucher->max_claims;
+        $this->expired_at             = $voucher->expired_at ? $voucher->expired_at->format('Y-m-d\TH:i') : null;
+        $this->is_active              = $voucher->is_active;
+        $this->showVoucherModal       = true;
     }
 
     public function saveVoucher(): void
     {
-        $this->validate([
-            'code'         => 'required|string|unique:vouchers,code,' . $this->voucherId,
-            'description'  => 'nullable|string',
-            'quota_amount' => 'required|integer|min:1',
-            'max_claims'   => 'required|integer|min:1',
-            'expired_at'   => 'nullable|date',
-            'is_active'    => 'boolean',
-        ]);
+        $rules = [
+            'code'                   => 'required|string|max:50|unique:vouchers,code,' . $this->voucherId,
+            'description'            => 'nullable|string|max:255',
+            'distribution'           => 'required|in:public,private',
+            'discount_type'          => 'required|in:fixed,percentage',
+            'min_transaction_amount' => 'nullable|integer|min:0',
+            'max_claims'             => 'required|integer|min:1',
+            'expired_at'             => 'nullable|date',
+            'is_active'              => 'boolean',
+        ];
+
+        if ($this->discount_type === 'fixed') {
+            $rules['discount_amount'] = 'required|integer|min:1000';
+        } else {
+            $rules['percentage'] = 'required|integer|min:1|max:100';
+            $rules['max_discount_amount'] = 'nullable|integer|min:1000';
+        }
+
+        $this->validate($rules);
 
         $data = [
-            'code'         => strtoupper($this->code),
-            'description'  => $this->description,
-            'quota_amount' => $this->quota_amount,
-            'max_claims'   => $this->max_claims,
-            'expired_at'   => $this->expired_at,
-            'is_active'    => $this->is_active,
+            'code'                   => strtoupper(trim($this->code)),
+            'description'            => $this->description ?: null,
+            'distribution'           => $this->distribution,
+            'type'                   => $this->discount_type,
+            'discount_amount'        => $this->discount_type === 'fixed' ? $this->discount_amount : null,
+            'percentage'             => $this->discount_type === 'percentage' ? $this->percentage : null,
+            'max_discount_amount'    => $this->discount_type === 'percentage' ? ($this->max_discount_amount ?: null) : null,
+            'min_transaction_amount' => $this->min_transaction_amount ?: 0,
+            'max_claims'             => $this->max_claims,
+            'expired_at'             => $this->expired_at ?: null,
+            'is_active'              => $this->is_active,
         ];
 
         if ($this->voucherId) {
             Voucher::findOrFail($this->voucherId)->update($data);
-            $this->dispatch('notify', message: 'Voucher berhasil diperbarui.');
+            $this->dispatch('notify', message: 'Voucher diskon berhasil diperbarui.');
         } else {
             Voucher::create(array_merge($data, ['claimed_count' => 0]));
-            $this->dispatch('notify', message: 'Voucher berhasil dibuat.');
+            $this->dispatch('notify', message: 'Voucher diskon berhasil dibuat.');
         }
 
         $this->showVoucherModal = false;
@@ -149,6 +197,12 @@ class MonetizationPanel extends Component
         $voucher->is_active = ! $voucher->is_active;
         $voucher->save();
         $this->dispatch('notify', message: 'Status voucher diperbarui.');
+    }
+
+    public function deleteVoucher(int $id): void
+    {
+        Voucher::findOrFail($id)->delete();
+        $this->dispatch('notify', message: 'Voucher berhasil dihapus.');
     }
 
     // ─── Slot Package CRUD ───────────────────────────────────────────

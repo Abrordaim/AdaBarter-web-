@@ -97,18 +97,7 @@ class DatabaseSeeder extends Seeder
         );
 
         // 2. Promotional Banners
-        Banner::firstOrCreate(
-            ['title' => 'Festival Barter Indonesia 2024'],
-            [
-                'image_url' => 'https://images.unsplash.com/photo-1556742049-0a67c5574f73?w=800&auto=format&fit=crop',
-                'redirect_url' => 'https://adabarter.com/promo/festival-barter',
-                'advertiser_name' => 'AdaBarter Official',
-                'position' => 'home_top',
-                'is_active' => true,
-                'started_at' => now(),
-                'expired_at' => now()->addMonths(6),
-            ]
-        );
+        
 
         Banner::firstOrCreate(
             ['title' => 'Upgrade VIP Sekarang - Bebas Posting Tanpa Batas!'],
@@ -116,7 +105,7 @@ class DatabaseSeeder extends Seeder
                 'image_url' => 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=800&auto=format&fit=crop',
                 'redirect_url' => 'https://adabarter.com/monetization/vip',
                 'advertiser_name' => 'AdaBarter VIP Club',
-                'position' => 'home_bottom',
+                'position' => 'home_top',
                 'is_active' => true,
                 'started_at' => now(),
                 'expired_at' => now()->addMonths(12),
