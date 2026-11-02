@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RatingController;
 use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Api\PaymentWebhookController;
+use App\Http\Controllers\Api\MeetingPointController;
+use App\Http\Controllers\Api\BarterTrackingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -76,15 +78,28 @@ Route::middleware(['auth:sanctum', 'check_banned'])->group(function () {
     Route::get('/offers/{offerId}/chats', [ChatController::class, 'messages']);
     Route::post('/offers/{offerId}/chats', [ChatController::class, 'send']);
 
+    // Meeting Points (Lock Titik Temu)
+    Route::get('/offers/{id}/meeting-point', [MeetingPointController::class, 'show']);
+    Route::post('/offers/{id}/meeting-point/propose', [MeetingPointController::class, 'propose']);
+    Route::post('/offers/{id}/meeting-point/{meetingPointId}/agree', [MeetingPointController::class, 'agree']);
+    Route::post('/offers/{id}/meeting-point/counter', [MeetingPointController::class, 'counter']);
+
+    // Barter Tracking (Live Tracker Antar Pengguna)
+    Route::get('/offers/{id}/tracking', [BarterTrackingController::class, 'show']);
+    Route::post('/offers/{id}/tracking/location', [BarterTrackingController::class, 'updateLocation']);
+    Route::post('/offers/{id}/tracking/stop', [BarterTrackingController::class, 'stop']);
+
     // Vouchers (Claim & List)
     Route::get('/vouchers/available', [VoucherController::class, 'available']);
     Route::get('/vouchers/my', [VoucherController::class, 'myVouchers']);
     Route::post('/vouchers/claim', [VoucherController::class, 'claim']);
 
-    // Monetization (VIP, Boost, Quota Purchase, Transactions)
+    // Monetization (VIP Midtrans & Direct, Boost Midtrans & Free Quota, Transactions)
+    Route::post('/monetization/vip/pay', [MonetizationController::class, 'payVip']);
     Route::post('/monetization/subscribe', [MonetizationController::class, 'subscribe']);
+    Route::post('/monetization/items/{id}/boost/pay', [MonetizationController::class, 'payBoost']);
+    Route::post('/monetization/items/{id}/boost/use-quota', [MonetizationController::class, 'boostWithQuota']);
     Route::post('/monetization/items/{id}/boost', [MonetizationController::class, 'boost']);
-    Route::post('/monetization/quota/purchase', [MonetizationController::class, 'purchaseQuota']);
     Route::get('/monetization/transactions', [MonetizationController::class, 'transactions']);
 
     // Wallet & Withdrawal

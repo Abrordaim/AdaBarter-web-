@@ -194,6 +194,12 @@ class EscrowService
                 Item::whereIn('id', $offererItemIds)->update(['status' => 'traded']);
             }
 
+            // Stop any active barter trackings
+            \App\Models\BarterTracking::where('offer_id', $lockedOffer->id)->update([
+                'is_sharing' => false,
+                'status' => 'arrived',
+            ]);
+
             return $lockedOffer->refresh();
         });
     }

@@ -48,7 +48,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \App\Models\Regency|null $regency
  * @property-read \App\Models\District|null $district
  */
-#[Fillable(['name', 'email', 'password', 'role', 'phone', 'city', 'province_id', 'regency_id', 'district_id', 'province_name', 'regency_name', 'district_name', 'avatar', 'is_vip', 'is_banned', 'banned_at', 'ban_reason', 'free_post_quota', 'bonus_post_quota'])]
+#[Fillable(['name', 'email', 'password', 'role', 'phone', 'city', 'province_id', 'regency_id', 'district_id', 'province_name', 'regency_name', 'district_name', 'avatar', 'is_vip', 'vip_expires_at', 'boost_quota', 'is_banned', 'banned_at', 'ban_reason', 'free_post_quota', 'bonus_post_quota'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -66,6 +66,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_vip' => 'boolean',
+            'vip_expires_at' => 'datetime',
+            'boost_quota' => 'integer',
             'is_banned' => 'boolean',
             'banned_at' => 'datetime',
             'province_id' => 'integer',
@@ -146,7 +148,11 @@ class User extends Authenticatable
 
     public function isVip(): bool
     {
-        return $this->is_vip || $this->subscriptions()->active()->exists();
+        if ($this->vip_expires_at && $this->vip_expires_at->isFuture()) {
+            return true;
+        }
+
+        return (bool) $this->is_vip || $this->subscriptions()->active()->exists();
     }
 
     public function isBanned(): bool

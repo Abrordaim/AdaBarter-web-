@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
 
-            // Relasi ke transaksi barter (offers)
-            $table->foreignId('offer_id')->constrained('offers')->cascadeOnDelete();
+            // Relasi ke transaksi barter (offers) - nullable untuk mendukung pembayaran VIP / Boost
+            $table->foreignId('offer_id')->nullable()->constrained('offers')->cascadeOnDelete();
 
             // Kode order unik untuk gateway (contoh: BRT-12-abcdef12)
             $table->string('order_id', 100)->unique();

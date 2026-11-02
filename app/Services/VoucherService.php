@@ -105,7 +105,7 @@ class VoucherService
         /** @var Voucher|null $voucher */
         $voucher = null;
 
-        if (!empty($voucherId)) {
+        if (!empty($voucherId)) {   
             $voucher = Voucher::find($voucherId);
             if (!$voucher) {
                 throw ValidationException::withMessages([

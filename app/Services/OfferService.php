@@ -6,7 +6,9 @@ use App\Enums\EscrowStatus;
 use App\Models\Chat;
 use App\Models\Item;
 use App\Models\Offer;
+use App\Models\Payment;
 use App\Models\User;
+use App\Models\VoucherClaim;
 use App\Repositories\Contracts\ItemRepositoryInterface;
 use App\Repositories\Contracts\OfferRepositoryInterface;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -296,12 +298,20 @@ class OfferService
                 'type' => 'system',
             ]);
 
+            // Stop any active barter trackings
+            \App\Models\BarterTracking::where('offer_id', $offer->id)->update([
+                'is_sharing' => false,
+                'status' => 'arrived',
+            ]);
+
             return $updated;
         });
     }
 
     /**
-     * Offerer cancels pending offer.
+     * Cancel offer:
+     * - If pending: only offerer can cancel.
+     * - If matched: either participant can cancel if escrow has not been paid yet (escrow_status is WAITING_PAYMENT or null).
      *
      * @param User $user
      * @param int $id
@@ -317,16 +327,67 @@ class OfferService
             throw new \Exception('Penawaran tidak ditemukan.');
         }
 
-        if ($offer->offerer_user_id !== $user->id) {
-            throw new AuthorizationException('Hanya penawar yang dapat membatalkan penawaran ini.');
+        // Kasus 1: Penawaran masih berstatus pending
+        if ($offer->status === 'pending') {
+            if ($offer->offerer_user_id !== $user->id) {
+                throw new AuthorizationException('Hanya penawar yang dapat membatalkan penawaran ini.');
+            }
+
+            return $this->offerRepository->update($offer->id, [
+                'status' => 'cancelled',
+            ]);
         }
 
-        if ($offer->status !== 'pending') {
-            throw new \Exception('Penawaran hanya dapat dibatalkan saat masih berstatus pending.');
+        // Kasus 2: Penawaran sudah disepakati (matched)
+        if ($offer->status === 'matched') {
+            if (!in_array($user->id, [$offer->offerer_user_id, $offer->target_user_id], true)) {
+                throw new AuthorizationException('Hanya pihak yang terlibat dalam penawaran ini yang dapat membatalkannya.');
+            }
+
+            // Jika transaksi menggunakan rekening bersama (escrow), hanya bisa dibatalkan jika belum dibayar (WAITING_PAYMENT atau null)
+            if ($offer->isEscrow() && !in_array($offer->escrow_status, [EscrowStatus::WAITING_PAYMENT, null], true)) {
+                throw new \Exception('Transaksi tidak dapat dibatalkan langsung karena dana telah disetorkan. Silakan ajukan komplain/sengketa.');
+            }
+
+            return DB::transaction(function () use ($offer, $user) {
+                // 1. Batalkan pembayaran pending dan kembalikan voucher jika ada
+                $pendingPayments = Payment::where('offer_id', $offer->id)
+                    ->where('status', 'pending')
+                    ->get();
+
+                foreach ($pendingPayments as $payment) {
+                    $payment->update(['status' => 'cancelled']);
+
+                    if ($payment->voucher_claim_id) {
+                        VoucherClaim::where('id', $payment->voucher_claim_id)->update([
+                            'is_used' => false,
+                            'used_at' => null,
+                            'offer_id' => null,
+                        ]);
+                    }
+                }
+
+                // 2. Transisi status escrow ke EXPIRED jika masih WAITING_PAYMENT
+                $updateData = ['status' => 'cancelled'];
+                if ($offer->escrow_status === EscrowStatus::WAITING_PAYMENT) {
+                    $updateData['escrow_status'] = EscrowStatus::EXPIRED;
+                }
+
+                $updated = $this->offerRepository->update($offer->id, $updateData);
+
+                // 3. Catat notifikasi sistem ke chat negosiasi
+                Chat::create([
+                    'offer_id' => $offer->id,
+                    'sender_id' => $user->id,
+                    'message' => "Kesepakatan barter telah dibatalkan oleh {$user->name}.",
+                    'type' => 'system',
+                ]);
+
+                return $updated;
+            });
         }
 
-        return $this->offerRepository->update($offer->id, [
-            'status' => 'cancelled',
-        ]);
+        throw new \Exception('Penawaran dengan status [' . $offer->status . '] tidak dapat dibatalkan.');
     }
 }
+

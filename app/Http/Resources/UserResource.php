@@ -25,6 +25,8 @@ class UserResource extends JsonResource
             'avatar_url' => $this->avatar ? url(Storage::url($this->avatar)) : null,
             'role' => $this->role,
             'is_vip' => $this->isVip(),
+            'vip_expires_at' => $this->vip_expires_at?->toISOString() ?? ($this->subscriptions()->active()->latest('expired_at')->value('expired_at')?->toISOString()),
+            'boost_quota' => (int) ($this->boost_quota ?? 0),
             'free_post_quota' => $this->free_post_quota,
             'bonus_post_quota' => $this->bonus_post_quota,
             'remaining_quota' => $this->remainingPostQuota(),
@@ -32,6 +34,7 @@ class UserResource extends JsonResource
             'average_rating' => $this->averageRating(),
             'ratings_count' => $this->ratingsCount(),
             'created_at' => $this->created_at?->toISOString(),
+
         ];
     }
 }

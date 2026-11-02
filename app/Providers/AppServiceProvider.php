@@ -31,6 +31,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Events\EscrowStatusChanged::class,
             \App\Listeners\SendEscrowStatusNotification::class
         );
+
+        \Illuminate\Support\Facades\Gate::policy(
+            \App\Models\MeetingPoint::class,
+            \App\Policies\MeetingPointPolicy::class
+        );
     }
 
     /**

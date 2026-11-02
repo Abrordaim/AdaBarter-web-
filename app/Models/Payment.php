@@ -27,6 +27,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read VoucherClaim|null $voucherClaim
  */
 #[Fillable([
+    'user_id',
+    'type',
+    'reference_id',
     'offer_id',
     'voucher_claim_id',
     'order_id',
@@ -39,6 +42,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'status',
     'snap_token',
     'raw_payload',
+    'metadata',
     'paid_at',
 ])]
 class Payment extends Model
@@ -50,8 +54,14 @@ class Payment extends Model
             'discount_amount' => 'integer',
             'gross_amount' => 'integer',
             'raw_payload' => 'array',
+            'metadata' => 'array',
             'paid_at' => 'datetime',
         ];
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function offer(): BelongsTo

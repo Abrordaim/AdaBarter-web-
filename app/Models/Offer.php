@@ -141,6 +141,26 @@ class Offer extends Model
         return $this->hasMany(Rating::class);
     }
 
+    public function meetingPoints(): HasMany
+    {
+        return $this->hasMany(MeetingPoint::class);
+    }
+
+    public function lockedMeetingPoint(): HasOne
+    {
+        return $this->hasOne(MeetingPoint::class)->where('status', 'locked')->latestOfMany();
+    }
+
+    public function pendingMeetingPoint(): HasOne
+    {
+        return $this->hasOne(MeetingPoint::class)->where('status', 'proposed')->latestOfMany();
+    }
+
+    public function trackings(): HasMany
+    {
+        return $this->hasMany(BarterTracking::class);
+    }
+
     public function isPending(): bool
     {
         return $this->status === 'pending';

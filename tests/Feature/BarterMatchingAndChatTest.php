@@ -258,7 +258,93 @@ test('offerer can cancel pending offer', function () {
     expect($offer->fresh()->status)->toBe('cancelled');
 });
 
+test('either participant can cancel matched offer when escrow is in WAITING_PAYMENT', function () {
+    $offer = Offer::create([
+        'offerer_user_id' => $this->userA->id,
+        'target_user_id' => $this->userB->id,
+        'offerer_item_id' => $this->itemA->id,
+        'target_item_id' => $this->itemB->id,
+        'status' => 'matched',
+        'offerer_approved' => true,
+        'target_approved' => true,
+        'payment_method' => 'gateway',
+        'price_difference' => 2000000,
+        'payer_id' => $this->userA->id,
+        'receiver_id' => $this->userB->id,
+        'escrow_status' => \App\Enums\EscrowStatus::WAITING_PAYMENT,
+    ]);
+
+    // Target user (userB) can cancel the matched offer
+    $cancelResponse = $this->withHeader('Authorization', "Bearer {$this->tokenB}")
+        ->postJson("/api/offers/{$offer->id}/cancel");
+
+    $cancelResponse->assertStatus(200)
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('data.status', 'cancelled');
+
+    $freshOffer = $offer->fresh();
+    expect($freshOffer->status)->toBe('cancelled')
+        ->and($freshOffer->escrow_status)->toBe(\App\Enums\EscrowStatus::EXPIRED);
+
+    // Check system message in chat
+    expect(\App\Models\Chat::where('offer_id', $offer->id)->count())->toBeGreaterThan(0);
+});
+
+test('stranger cannot cancel matched offer', function () {
+    $stranger = User::create([
+        'name' => 'Stranger User',
+        'email' => 'stranger@example.com',
+        'password' => bcrypt('password123'),
+        'remaining_post_quota' => 3,
+    ]);
+    $strangerToken = $stranger->createToken('auth')->plainTextToken;
+
+    $offer = Offer::create([
+        'offerer_user_id' => $this->userA->id,
+        'target_user_id' => $this->userB->id,
+        'offerer_item_id' => $this->itemA->id,
+        'target_item_id' => $this->itemB->id,
+        'status' => 'matched',
+        'offerer_approved' => true,
+        'target_approved' => true,
+        'payment_method' => 'gateway',
+        'price_difference' => 2000000,
+        'payer_id' => $this->userA->id,
+        'receiver_id' => $this->userB->id,
+        'escrow_status' => \App\Enums\EscrowStatus::WAITING_PAYMENT,
+    ]);
+
+    $cancelResponse = $this->withHeader('Authorization', "Bearer {$strangerToken}")
+        ->postJson("/api/offers/{$offer->id}/cancel");
+
+    $cancelResponse->assertStatus(403);
+});
+
+test('cannot cancel matched offer when escrow has already been paid', function () {
+    $offer = Offer::create([
+        'offerer_user_id' => $this->userA->id,
+        'target_user_id' => $this->userB->id,
+        'offerer_item_id' => $this->itemA->id,
+        'target_item_id' => $this->itemB->id,
+        'status' => 'matched',
+        'offerer_approved' => true,
+        'target_approved' => true,
+        'payment_method' => 'gateway',
+        'price_difference' => 2000000,
+        'payer_id' => $this->userA->id,
+        'receiver_id' => $this->userB->id,
+        'escrow_status' => \App\Enums\EscrowStatus::HELD,
+        'handover_code' => '123456',
+    ]);
+
+    $cancelResponse = $this->withHeader('Authorization', "Bearer {$this->tokenA}")
+        ->postJson("/api/offers/{$offer->id}/cancel");
+
+    $cancelResponse->assertStatus(400);
+});
+
 test('user can submit multi-item barter proposal with automatic price calculation', function () {
+
     // User A creates second item (e.g. AirPods Rp 1.000.000)
     $itemA2 = Item::create([
         'user_id' => $this->userA->id,

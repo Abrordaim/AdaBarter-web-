@@ -2,7 +2,6 @@
 
 use App\Livewire\Admin\MonetizationPanel;
 use App\Models\BoostPackage;
-use App\Models\SlotPackage;
 use App\Models\User;
 use App\Models\VipPlan;
 use Livewire\Livewire;
@@ -17,99 +16,12 @@ test('admin can access monetization panel and switch tabs', function () {
     Livewire::actingAs($this->admin)
         ->test(MonetizationPanel::class)
         ->assertStatus(200)
-        ->assertSee('Slot Packages')
         ->assertSee('VIP Plans')
         ->assertSee('Boost Packages')
-        ->call('setTab', 'slot_packages')
-        ->assertSet('activeTab', 'slot_packages')
         ->call('setTab', 'vip_plans')
         ->assertSet('activeTab', 'vip_plans')
         ->call('setTab', 'boost_packages')
         ->assertSet('activeTab', 'boost_packages');
-});
-
-test('admin can create slot package', function () {
-    Livewire::actingAs($this->admin)
-        ->test(MonetizationPanel::class)
-        ->call('setTab', 'slot_packages')
-        ->call('createSlot')
-        ->assertSet('showSlotModal', true)
-        ->set('slotName', '+10 Slot Super')
-        ->set('slotSlots', 10)
-        ->set('slotPrice', 75000)
-        ->set('slotBadge', 'Super Hemat')
-        ->set('slotSortOrder', 4)
-        ->call('saveSlot')
-        ->assertSet('showSlotModal', false)
-        ->assertDispatched('notify');
-
-    $this->assertDatabaseHas('slot_packages', [
-        'name' => '+10 Slot Super',
-        'slots' => 10,
-        'price' => 75000,
-        'badge' => 'Super Hemat',
-        'sort_order' => 4,
-        'is_active' => true,
-    ]);
-});
-
-test('admin can edit slot package', function () {
-    $pkg = SlotPackage::create([
-        'name' => 'Paket Awal',
-        'slots' => 2,
-        'price' => 20000,
-        'sort_order' => 1,
-        'is_active' => true,
-    ]);
-
-    Livewire::actingAs($this->admin)
-        ->test(MonetizationPanel::class)
-        ->call('editSlot', $pkg->id)
-        ->assertSet('editingSlotId', $pkg->id)
-        ->assertSet('slotName', 'Paket Awal')
-        ->set('slotName', 'Paket Diperbarui')
-        ->set('slotPrice', 18000)
-        ->call('saveSlot')
-        ->assertDispatched('notify');
-
-    $this->assertDatabaseHas('slot_packages', [
-        'id' => $pkg->id,
-        'name' => 'Paket Diperbarui',
-        'price' => 18000,
-    ]);
-});
-
-test('admin can toggle slot package active status', function () {
-    $pkg = SlotPackage::create([
-        'name' => 'Paket Toggle',
-        'slots' => 1,
-        'price' => 10000,
-        'is_active' => true,
-    ]);
-
-    Livewire::actingAs($this->admin)
-        ->test(MonetizationPanel::class)
-        ->call('toggleSlot', $pkg->id)
-        ->assertDispatched('notify');
-
-    expect($pkg->fresh()->is_active)->toBeFalse();
-});
-
-test('admin can delete slot package', function () {
-    $pkg = SlotPackage::create([
-        'name' => 'Paket Dihapus',
-        'slots' => 1,
-        'price' => 10000,
-    ]);
-
-    Livewire::actingAs($this->admin)
-        ->test(MonetizationPanel::class)
-        ->call('deleteSlot', $pkg->id)
-        ->assertDispatched('notify');
-
-    $this->assertDatabaseMissing('slot_packages', [
-        'id' => $pkg->id,
-    ]);
 });
 
 test('admin can create vip plan', function () {
@@ -123,6 +35,8 @@ test('admin can create vip plan', function () {
         ->set('vipPrice', 220000)
         ->set('vipTag', 'Promo Khusus')
         ->set('vipBadge', 'Hemat 25%')
+        ->set('vipBonusPostQuota', 50)
+        ->set('vipBonusBoostQuota', 15)
         ->set('vipFeatures', "Fitur 1\nFitur 2\nFitur 3")
         ->set('vipSortOrder', 3)
         ->call('saveVip')
@@ -135,6 +49,8 @@ test('admin can create vip plan', function () {
         'price' => 220000,
         'tag' => 'Promo Khusus',
         'badge' => 'Hemat 25%',
+        'bonus_post_quota' => 50,
+        'bonus_boost_quota' => 15,
         'sort_order' => 3,
         'is_active' => true,
     ]);
@@ -148,6 +64,8 @@ test('admin can edit vip plan', function () {
         'name' => 'VIP Percobaan',
         'duration_days' => 7,
         'price' => 15000,
+        'bonus_post_quota' => 5,
+        'bonus_boost_quota' => 1,
         'sort_order' => 1,
         'is_active' => true,
     ]);
@@ -157,8 +75,11 @@ test('admin can edit vip plan', function () {
         ->call('editVip', $plan->id)
         ->assertSet('editingVipId', $plan->id)
         ->assertSet('vipName', 'VIP Percobaan')
+        ->assertSet('vipBonusPostQuota', 5)
+        ->assertSet('vipBonusBoostQuota', 1)
         ->set('vipPrice', 12000)
         ->set('vipDurationDays', 14)
+        ->set('vipBonusPostQuota', 10)
         ->call('saveVip')
         ->assertDispatched('notify');
 
@@ -166,6 +87,7 @@ test('admin can edit vip plan', function () {
         'id' => $plan->id,
         'price' => 12000,
         'duration_days' => 14,
+        'bonus_post_quota' => 10,
     ]);
 });
 

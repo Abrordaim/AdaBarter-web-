@@ -25,7 +25,6 @@
             @foreach([
                 'transactions'   => 'Transactions',
                 'vouchers'       => 'Vouchers',
-                'slot_packages'  => 'Slot Packages',
                 'vip_plans'      => 'VIP Plans',
                 'boost_packages' => 'Boost Packages',
             ] as $tab => $label)
@@ -218,86 +217,6 @@
         </div>
     @endif
 
-    {{-- ───────────── SLOT PACKAGES TAB ───────────── --}}
-    @if($activeTab === 'slot_packages')
-        <div>
-            <div class="mb-4 flex items-center justify-between">
-                <p class="text-sm text-gray-500">Kelola paket pembelian kuota slot posting barang.</p>
-                <button wire:click="createSlot"
-                    class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium">
-                    + Tambah Paket Slot
-                </button>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left text-gray-500">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3">ID</th>
-                                <th class="px-6 py-3">Nama Paket</th>
-                                <th class="px-6 py-3 text-center">Jumlah Slot</th>
-                                <th class="px-6 py-3 text-right">Harga</th>
-                                <th class="px-6 py-3">Badge</th>
-                                <th class="px-6 py-3 text-center">Urutan</th>
-                                <th class="px-6 py-3 text-center">Status</th>
-                                <th class="px-6 py-3 text-right">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            @forelse($slotPackages as $pkg)
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 text-gray-400 text-xs">#{{ $pkg->id }}</td>
-                                    <td class="px-6 py-4 font-medium text-gray-900">{{ $pkg->name }}</td>
-                                    <td class="px-6 py-4 text-center font-bold text-emerald-600">+{{ $pkg->slots }}</td>
-                                    <td class="px-6 py-4 text-right font-semibold text-gray-800">
-                                        Rp {{ number_format($pkg->price, 0, ',', '.') }}
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        @if($pkg->badge)
-                                            <span class="px-2 py-0.5 bg-amber-100 text-amber-700 rounded text-xs font-medium">{{ $pkg->badge }}</span>
-                                        @else
-                                            <span class="text-gray-300">—</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 text-center text-gray-500">{{ $pkg->sort_order }}</td>
-                                    <td class="px-6 py-4 text-center">
-                                        <button wire:click="toggleSlot({{ $pkg->id }})"
-                                            class="px-2.5 py-0.5 rounded-full text-xs font-medium {{ $pkg->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
-                                            {{ $pkg->is_active ? 'Aktif' : 'Nonaktif' }}
-                                        </button>
-                                    </td>
-                                    <td class="px-6 py-4 text-right">
-                                        <div class="flex justify-end gap-2">
-                                            <button wire:click="editSlot({{ $pkg->id }})"
-                                                class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 font-medium">
-                                                Edit
-                                            </button>
-                                            <button wire:click="deleteSlot({{ $pkg->id }})"
-                                                wire:confirm="Hapus paket slot ini?"
-                                                class="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium">
-                                                Hapus
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="8" class="px-6 py-8 text-center text-gray-400">
-                                        Belum ada paket slot. Klik "+ Tambah Paket Slot" untuk memulai.
-                                    </td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-                @if($slotPackages->hasPages())
-                    <div class="px-6 py-4 border-t border-gray-100">{{ $slotPackages->links() }}</div>
-                @endif
-            </div>
-        </div>
-    @endif
-
     {{-- ───────────── VIP PLANS TAB ───────────── --}}
     @if($activeTab === 'vip_plans')
         <div>
@@ -317,6 +236,8 @@
                                 <th class="px-6 py-3">ID</th>
                                 <th class="px-6 py-3">Nama Paket</th>
                                 <th class="px-6 py-3 text-center">Masa Aktif</th>
+                                <th class="px-6 py-3 text-center">Bonus Slot Posting</th>
+                                <th class="px-6 py-3 text-center">Bonus Kuota Boost</th>
                                 <th class="px-6 py-3 text-right">Harga</th>
                                 <th class="px-6 py-3">Tag / Badge</th>
                                 <th class="px-6 py-3 text-center">Urutan</th>
@@ -331,6 +252,12 @@
                                     <td class="px-6 py-4 font-medium text-gray-900">{{ $plan->name }}</td>
                                     <td class="px-6 py-4 text-center text-gray-700">
                                         {{ $plan->duration_days }} hari
+                                    </td>
+                                    <td class="px-6 py-4 text-center font-bold text-emerald-600">
+                                        +{{ $plan->bonus_post_quota }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center font-bold text-amber-600">
+                                        +{{ $plan->bonus_boost_quota }}
                                     </td>
                                     <td class="px-6 py-4 text-right font-semibold text-gray-800">
                                         Rp {{ number_format($plan->price, 0, ',', '.') }}
@@ -371,7 +298,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="px-6 py-8 text-center text-gray-400">
+                                    <td colspan="10" class="px-6 py-8 text-center text-gray-400">
                                         Belum ada paket VIP. Klik "+ Tambah Paket VIP" untuk memulai.
                                     </td>
                                 </tr>
@@ -615,73 +542,6 @@
         </div>
     @endif
 
-    {{-- Slot Package Modal --}}
-    @if($showSlotModal)
-        <div class="fixed inset-0 z-100 overflow-y-auto bg-gray-900/75 flex items-center justify-center p-4">
-            <div class="bg-white rounded-xl text-left overflow-hidden shadow-xl sm:max-w-lg w-full">
-                <form wire:submit="saveSlot">
-                    <div class="bg-white px-6 pt-6 pb-4 space-y-4">
-                        <h3 class="text-lg font-semibold text-gray-900">
-                            {{ $editingSlotId ? 'Edit Paket Slot' : 'Tambah Paket Slot' }}
-                        </h3>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Nama Paket</label>
-                            <input type="text" wire:model="slotName" placeholder="contoh: +3 Slot Barang"
-                                class="mt-1 block w-full border border-gray-300 rounded-md p-2.5 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
-                            @error('slotName') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Jumlah Slot</label>
-                                <input type="number" wire:model="slotSlots" min="1" placeholder="3"
-                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2.5 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
-                                @error('slotSlots') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Harga (Rp)</label>
-                                <input type="number" wire:model="slotPrice" min="0" placeholder="25000"
-                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2.5 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
-                                @error('slotPrice') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Badge <span class="text-gray-400">(opsional)</span></label>
-                            <input type="text" wire:model="slotBadge" placeholder="contoh: Hemat Rp 5.000"
-                                class="mt-1 block w-full border border-gray-300 rounded-md p-2.5 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700">Urutan Tampil</label>
-                                <input type="number" wire:model="slotSortOrder" min="0"
-                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2.5 sm:text-sm">
-                            </div>
-                            <div class="flex items-end pb-1">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" wire:model="slotIsActive" class="rounded text-emerald-600">
-                                    <span class="text-sm font-medium text-gray-700">Aktif (tampil di mobile)</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="bg-gray-50 px-6 py-3 flex flex-row-reverse gap-3">
-                        <button type="submit"
-                            class="inline-flex justify-center rounded-md px-4 py-2 bg-emerald-600 text-sm font-medium text-white hover:bg-emerald-700">
-                            Simpan
-                        </button>
-                        <button type="button" wire:click="$set('showSlotModal', false)"
-                            class="inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
-                            Batal
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    @endif
-
     {{-- VIP Plan Modal --}}
     @if($showVipModal)
         <div class="fixed inset-0 z-100 overflow-y-auto bg-gray-900/75 flex items-center justify-center p-4">
@@ -711,6 +571,21 @@
                                 <input type="number" wire:model="vipPrice" min="0" placeholder="49000"
                                     class="mt-1 block w-full border border-gray-300 rounded-md p-2.5 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
                                 @error('vipPrice') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Bonus Slot Posting</label>
+                                <input type="number" wire:model="vipBonusPostQuota" min="0" placeholder="10"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2.5 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
+                                @error('vipBonusPostQuota') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Bonus Kuota Boost</label>
+                                <input type="number" wire:model="vipBonusBoostQuota" min="0" placeholder="2"
+                                    class="mt-1 block w-full border border-gray-300 rounded-md p-2.5 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm">
+                                @error('vipBonusBoostQuota') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
                             </div>
                         </div>
 

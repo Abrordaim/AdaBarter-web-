@@ -43,6 +43,8 @@ class UserService
             'avatar' => $user->avatar ? url(Storage::url($user->avatar)) : null,
             'role' => $user->role,
             'is_vip' => $user->isVip(),
+            'vip_expires_at' => $user->vip_expires_at?->toISOString() ?? ($user->subscriptions()->active()->latest('expired_at')->value('expired_at')?->toISOString()),
+            'boost_quota' => (int) ($user->boost_quota ?? 0),
             'free_post_quota' => $user->free_post_quota,
             'bonus_post_quota' => $user->bonus_post_quota,
             'remaining_quota' => $user->remainingPostQuota(),

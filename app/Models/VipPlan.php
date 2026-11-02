@@ -11,23 +11,27 @@ use Illuminate\Database\Eloquent\Builder;
  * @property string $name
  * @property int $duration_days
  * @property float $price
+ * @property int $bonus_post_quota
+ * @property int $bonus_boost_quota
  * @property string|null $tag
  * @property string|null $badge
  * @property array|null $features
  * @property bool $is_active
  * @property int $sort_order
  */
-#[Fillable(['name', 'duration_days', 'price', 'tag', 'badge', 'features', 'is_active', 'sort_order'])]
+#[Fillable(['name', 'duration_days', 'price', 'bonus_post_quota', 'bonus_boost_quota', 'tag', 'badge', 'features', 'is_active', 'sort_order'])]
 class VipPlan extends Model
 {
     protected function casts(): array
     {
         return [
-            'duration_days' => 'integer',
-            'price'         => 'decimal:2',
-            'features'      => 'array',
-            'is_active'     => 'boolean',
-            'sort_order'    => 'integer',
+            'duration_days'     => 'integer',
+            'price'             => 'decimal:2',
+            'bonus_post_quota'  => 'integer',
+            'bonus_boost_quota' => 'integer',
+            'features'          => 'array',
+            'is_active'         => 'boolean',
+            'sort_order'        => 'integer',
         ];
     }
 

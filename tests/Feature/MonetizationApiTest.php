@@ -3,15 +3,12 @@
 use App\Models\BoostPackage;
 use App\Models\Category;
 use App\Models\Item;
-use App\Models\SlotPackage;
 use App\Models\User;
 use App\Models\VipPlan;
 use Database\Seeders\BoostPackageSeeder;
-use Database\Seeders\SlotPackageSeeder;
 use Database\Seeders\VipPlanSeeder;
 
 beforeEach(function () {
-    $this->seed(SlotPackageSeeder::class);
     $this->seed(VipPlanSeeder::class);
     $this->seed(BoostPackageSeeder::class);
 
@@ -26,6 +23,7 @@ beforeEach(function () {
         'email' => 'doni@adabarter.com',
         'free_post_quota' => 3,
         'bonus_post_quota' => 0,
+        'boost_quota' => 0,
         'is_vip' => false,
         'city' => 'Bandung',
     ]);
@@ -55,22 +53,17 @@ test('public can view all monetization packages and plans from database', functi
             'data' => [
                 'subscription_plans',
                 'boost_packages',
-                'quota_packages',
             ],
         ]);
 
     expect($response->json('data.subscription_plans'))->toHaveCount(3);
     expect($response->json('data.boost_packages'))->toHaveCount(3);
-    expect($response->json('data.quota_packages'))->toHaveCount(3);
 
-    // Verify first subscription plan has integer ID
+    // Verify first subscription plan has bonus quota fields
     $firstVip = $response->json('data.subscription_plans.0');
     expect($firstVip['id'])->toBeInt();
-
-    // Verify first slot package has integer ID and slots
-    $firstSlot = $response->json('data.quota_packages.0');
-    expect($firstSlot['id'])->toBeInt();
-    expect($firstSlot['slots'])->toBe(1);
+    expect($firstVip)->toHaveKey('bonus_post_quota');
+    expect($firstVip)->toHaveKey('bonus_boost_quota');
 
     // Verify first boost package has integer ID and days
     $firstBoost = $response->json('data.boost_packages.0');
@@ -180,52 +173,44 @@ test('user can also boost item listing using legacy days parameter', function ()
     ]);
 });
 
-test('user can purchase pay-per-post quota packages using slot_package_id', function () {
-    expect($this->user->bonus_post_quota)->toBe(0);
-
-    $slotPackage = SlotPackage::where('slots', 3)->first();
+test('user can boost item using vip boost quota for free', function () {
+    // Give user boost_quota
+    $this->user->update(['boost_quota' => 2]);
 
     $response = $this->withHeader('Authorization', "Bearer {$this->token}")
-        ->postJson('/api/monetization/quota/purchase', [
-            'slot_package_id' => $slotPackage->id,
-            'payment_method' => 'GoPay (Simulasi)',
-        ]);
+        ->postJson("/api/monetization/items/{$this->item->id}/boost/use-quota");
 
     $response->assertStatus(200)
-        ->assertJsonPath('success', true)
-        ->assertJsonPath('data.new_bonus_quota', 3);
+        ->assertJsonPath('success', true);
 
+    $this->item->refresh();
     $this->user->refresh();
-    expect($this->user->bonus_post_quota)->toBe(3);
 
-    $this->assertDatabaseHas('transactions', [
-        'user_id' => $this->user->id,
-        'type' => 'pay_per_post',
-        'amount' => $slotPackage->price,
-        'status' => 'completed',
-    ]);
+    expect($this->item->is_boosted)->toBeTrue();
+    expect($this->user->boost_quota)->toBe(1); // decremented by 1
 });
 
-test('purchasing quota with invalid slot_package_id returns validation error', function () {
+test('boost with quota fails when user has no quota', function () {
+    // user has boost_quota = 0 (set in beforeEach)
     $response = $this->withHeader('Authorization', "Bearer {$this->token}")
-        ->postJson('/api/monetization/quota/purchase', [
-            'slot_package_id' => 99999,
-        ]);
+        ->postJson("/api/monetization/items/{$this->item->id}/boost/use-quota");
 
-    $response->assertStatus(422)
-        ->assertJsonValidationErrors(['slot_package_id']);
+    $response->assertStatus(422);
 });
 
 test('user can retrieve full transaction receipt history', function () {
     $vipPlan = VipPlan::first();
-    $slotPkg = SlotPackage::first();
+    $boostPkg = BoostPackage::first();
 
-    // Perform two transactions
+    // Perform two transactions: VIP subscribe + item boost
     $this->withHeader('Authorization', "Bearer {$this->token}")
         ->postJson('/api/monetization/subscribe', ['plan_id' => $vipPlan->id]);
 
     $this->withHeader('Authorization', "Bearer {$this->token}")
-        ->postJson('/api/monetization/quota/purchase', ['slot_package_id' => $slotPkg->id]);
+        ->postJson("/api/monetization/items/{$this->item->id}/boost", [
+            'boost_package_id' => $boostPkg->id,
+            'payment_method' => 'GoPay (Simulasi)',
+        ]);
 
     $response = $this->withHeader('Authorization', "Bearer {$this->token}")
         ->getJson('/api/monetization/transactions');
@@ -235,6 +220,74 @@ test('user can retrieve full transaction receipt history', function () {
 
     $transactions = $response->json('data');
     expect($transactions)->toHaveCount(2);
-    expect($transactions[0]['type'])->toBe('pay_per_post');
-    expect($transactions[1]['type'])->toBe('subscription');
+
+    $types = collect($transactions)->pluck('type')->toArray();
+    expect($types)->toContain('boost');
+    expect($types)->toContain('subscription');
 });
+
+test('user can create vip payment snap token', function () {
+    $vipPlan = VipPlan::first();
+
+    $response = $this->withHeader('Authorization', "Bearer {$this->token}")
+        ->postJson('/api/monetization/vip/pay', [
+            'plan_id' => $vipPlan->id,
+        ]);
+
+    $response->assertStatus(200)
+        ->assertJsonPath('success', true)
+        ->assertJsonStructure([
+            'success',
+            'data' => [
+                'token',
+                'order_id',
+                'gross_amount',
+                'redirect_url',
+                'plan',
+            ],
+        ]);
+
+    expect($response->json('data.token'))->not->toBeEmpty();
+    expect($response->json('data.gross_amount'))->toBe((int) $vipPlan->price);
+
+    $this->assertDatabaseHas('payments', [
+        'user_id' => $this->user->id,
+        'type' => 'vip',
+        'reference_id' => $vipPlan->id,
+        'order_id' => $response->json('data.order_id'),
+    ]);
+});
+
+test('user can create boost payment snap token', function () {
+    $boostPkg = BoostPackage::first();
+
+    $response = $this->withHeader('Authorization', "Bearer {$this->token}")
+        ->postJson("/api/monetization/items/{$this->item->id}/boost/pay", [
+            'boost_package_id' => $boostPkg->id,
+        ]);
+
+    $response->assertStatus(200)
+        ->assertJsonPath('success', true)
+        ->assertJsonStructure([
+            'success',
+            'data' => [
+                'token',
+                'order_id',
+                'gross_amount',
+                'redirect_url',
+                'item',
+                'package',
+            ],
+        ]);
+
+    expect($response->json('data.token'))->not->toBeEmpty();
+    expect($response->json('data.gross_amount'))->toBe((int) $boostPkg->price);
+
+    $this->assertDatabaseHas('payments', [
+        'user_id' => $this->user->id,
+        'type' => 'boost',
+        'reference_id' => $this->item->id,
+        'order_id' => $response->json('data.order_id'),
+    ]);
+});
+

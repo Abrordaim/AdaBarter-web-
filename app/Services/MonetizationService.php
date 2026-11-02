@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\BoostPackage;
 use App\Models\Item;
-use App\Models\SlotPackage;
 use App\Models\Subscription;
 use App\Models\Transaction;
 use App\Models\User;
@@ -25,14 +24,16 @@ class MonetizationService
             ->orderBy('sort_order')
             ->get()
             ->map(fn (VipPlan $plan) => [
-                'id'              => $plan->id,
-                'name'            => $plan->name,
-                'duration_days'   => $plan->duration_days,
-                'price'           => (float) $plan->price,
-                'formatted_price' => $plan->formatted_price,
-                'tag'             => $plan->tag,
-                'badge'           => $plan->badge,
-                'features'        => $plan->features ?? [],
+                'id'                => $plan->id,
+                'name'              => $plan->name,
+                'duration_days'     => $plan->duration_days,
+                'price'             => (float) $plan->price,
+                'formatted_price'   => $plan->formatted_price,
+                'tag'               => $plan->tag,
+                'badge'             => $plan->badge,
+                'features'          => $plan->features ?? [],
+                'bonus_post_quota'  => (int) $plan->bonus_post_quota,
+                'bonus_boost_quota' => (int) $plan->bonus_boost_quota,
             ])
             ->values()
             ->toArray();
@@ -60,26 +61,6 @@ class MonetizationService
     }
 
     /**
-     * Get pay-per-post quota packages from DB.
-     */
-    public function getQuotaPackages(): array
-    {
-        return SlotPackage::active()
-            ->orderBy('sort_order')
-            ->get()
-            ->map(fn (SlotPackage $pkg) => [
-                'id'              => $pkg->id,
-                'slots'           => $pkg->slots,
-                'price'           => (float) $pkg->price,
-                'formatted_price' => $pkg->formatted_price,
-                'label'           => $pkg->name,
-                'badge'           => $pkg->badge,
-            ])
-            ->values()
-            ->toArray();
-    }
-
-    /**
      * Subscribe user to a VIP plan using plan's DB integer ID.
      */
     public function subscribe(User $user, int $planId, string $paymentMethod = 'QRIS / Bank Transfer'): array
@@ -92,11 +73,19 @@ class MonetizationService
 
         return DB::transaction(function () use ($user, $selectedPlan, $paymentMethod) {
             $durationDays = $selectedPlan->duration_days;
-            $startedAt    = now();
-            $expiredAt    = now()->addDays($durationDays);
+            $startedAt     = now();
+            $currentExpiry = ($user->vip_expires_at && $user->vip_expires_at->isFuture()) ? $user->vip_expires_at : now();
+            $expiredAt     = $currentExpiry->copy()->addDays($durationDays);
 
-            // Update user status
+            // Update user status & benefits
             $user->is_vip = true;
+            $user->vip_expires_at = $expiredAt;
+            if ($selectedPlan->bonus_post_quota > 0) {
+                $user->bonus_post_quota = (int) $user->bonus_post_quota + $selectedPlan->bonus_post_quota;
+            }
+            if ($selectedPlan->bonus_boost_quota > 0) {
+                $user->boost_quota = (int) $user->boost_quota + $selectedPlan->bonus_boost_quota;
+            }
             $user->save();
 
             // Record Subscription
@@ -197,37 +186,53 @@ class MonetizationService
     }
 
     /**
-     * Purchase extra posting quota by slot_package_id from DB.
+     * Boost barang listing menggunakan kuota boost VIP gratis milik user (tanpa bayar).
      */
-    public function purchaseQuota(User $user, int $slotPackageId, string $paymentMethod = 'QRIS / Bank Transfer'): array
+    public function boostWithQuota(User $user, int $itemId): array
     {
-        $pkg = SlotPackage::active()->find($slotPackageId);
+        /** @var Item|null $item */
+        $item = Item::find($itemId);
 
-        if (! $pkg) {
-            throw new \Exception('Paket slot tidak valid atau sudah tidak tersedia.');
+        if (! $item) {
+            throw new \Exception('Barang tidak ditemukan.');
         }
 
-        return DB::transaction(function () use ($user, $pkg, $paymentMethod) {
-            $slots = $pkg->slots;
-            $price = $pkg->price;
+        if ($item->user_id !== $user->id && ! $user->isAdmin()) {
+            throw new AuthorizationException('Anda hanya dapat mem-boost barang milik Anda sendiri.');
+        }
 
-            $user->increment('bonus_post_quota', $slots);
+        if ((int) $user->boost_quota <= 0) {
+            throw ValidationException::withMessages(['boost_quota' => 'Anda tidak memiliki kuota boost listing VIP yang tersedia.']);
+        }
+
+        return DB::transaction(function () use ($item, $user) {
+            $user->decrement('boost_quota', 1);
             $user->refresh();
+
+            $days = 7;
+            $currentExpiry = ($item->boost_expires_at && $item->boost_expires_at->isFuture()) ? $item->boost_expires_at : now();
+            $boostExpires = $currentExpiry->copy()->addDays($days);
+
+            $item->update([
+                'is_boosted'       => true,
+                'boost_expires_at' => $boostExpires,
+            ]);
 
             $trx = Transaction::create([
                 'user_id'        => $user->id,
-                'type'           => 'pay_per_post',
-                'amount'         => $price,
-                'description'    => "Pembelian Kuota Tambahan — {$pkg->name} (+{$slots} Slot Posting)",
+                'type'           => 'boost',
+                'amount'         => 0,
+                'description'    => "Iklan Sorotan (7 hari) via Kuota Boost VIP untuk barang '{$item->title}'",
                 'status'         => 'completed',
-                'payment_method' => $paymentMethod,
-                'payment_ref'    => 'QTA-' . strtoupper(Str::random(10)),
+                'payment_method' => 'Kuota Boost VIP',
+                'payment_ref'    => 'BST-VIP-' . strtoupper(Str::random(8)),
             ]);
 
             return [
-                'new_bonus_quota' => $user->bonus_post_quota,
-                'remaining_quota' => $user->remainingPostQuota(),
-                'transaction'     => $trx,
+                'item'                  => $item->fresh(),
+                'remaining_boost_quota' => $user->boost_quota,
+                'transaction'           => $trx,
+                'expires_at'            => $boostExpires->toISOString(),
             ];
         });
     }

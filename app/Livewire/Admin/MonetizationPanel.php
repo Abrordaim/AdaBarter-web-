@@ -3,7 +3,6 @@
 namespace App\Livewire\Admin;
 
 use App\Models\BoostPackage;
-use App\Models\SlotPackage;
 use App\Models\Subscription;
 use App\Models\Transaction;
 use App\Models\VipPlan;
@@ -20,7 +19,7 @@ class MonetizationPanel extends Component
 {
     use WithPagination;
 
-    /** @var string 'transactions'|'vouchers'|'slot_packages'|'vip_plans'|'boost_packages' */
+    /** @var string 'transactions'|'vouchers'|'vip_plans'|'boost_packages' */
     public string $activeTab = 'transactions';
 
     // Transaction filters
@@ -42,27 +41,19 @@ class MonetizationPanel extends Component
     public ?string $expired_at             = null;
     public bool    $is_active              = true;
 
-    // ─── Slot Package form ───────────────────────────────────────────
-    public bool    $showSlotModal  = false;
-    public ?int    $editingSlotId  = null;
-    public string  $slotName       = '';
-    public ?int    $slotSlots      = null;
-    public ?float  $slotPrice      = null;
-    public string  $slotBadge      = '';
-    public bool    $slotIsActive   = true;
-    public int     $slotSortOrder  = 0;
-
     // ─── VIP Plan form ───────────────────────────────────────────────
-    public bool    $showVipModal       = false;
-    public ?int    $editingVipId       = null;
-    public string  $vipName            = '';
-    public ?int    $vipDurationDays    = null;
-    public ?float  $vipPrice           = null;
-    public string  $vipTag             = '';
-    public string  $vipBadge           = '';
-    public string  $vipFeatures        = '';  // textarea: one feature per line
-    public bool    $vipIsActive        = true;
-    public int     $vipSortOrder       = 0;
+    public bool    $showVipModal          = false;
+    public ?int    $editingVipId          = null;
+    public string  $vipName               = '';
+    public ?int    $vipDurationDays       = null;
+    public ?float  $vipPrice              = null;
+    public int     $vipBonusPostQuota     = 0;
+    public int     $vipBonusBoostQuota    = 0;
+    public string  $vipTag                = '';
+    public string  $vipBadge              = '';
+    public string  $vipFeatures           = '';  // textarea: one feature per line
+    public bool    $vipIsActive           = true;
+    public int     $vipSortOrder          = 0;
 
     // ─── Boost Package form ──────────────────────────────────────────
     public bool    $showBoostModal   = false;
@@ -207,82 +198,6 @@ class MonetizationPanel extends Component
 
     // ─── Slot Package CRUD ───────────────────────────────────────────
 
-    public function createSlot(): void
-    {
-        $this->resetValidation();
-        $this->resetSlotForm();
-        $this->editingSlotId = null;
-        $this->showSlotModal = true;
-    }
-
-    public function editSlot(int $id): void
-    {
-        $pkg = SlotPackage::findOrFail($id);
-        $this->resetValidation();
-        $this->editingSlotId = $id;
-        $this->slotName      = $pkg->name;
-        $this->slotSlots     = $pkg->slots;
-        $this->slotPrice     = (float) $pkg->price;
-        $this->slotBadge     = $pkg->badge ?? '';
-        $this->slotIsActive  = $pkg->is_active;
-        $this->slotSortOrder = $pkg->sort_order;
-        $this->showSlotModal = true;
-    }
-
-    public function saveSlot(): void
-    {
-        $this->validate([
-            'slotName'      => 'required|string|max:100',
-            'slotSlots'     => 'required|integer|min:1',
-            'slotPrice'     => 'required|numeric|min:0',
-            'slotBadge'     => 'nullable|string|max:100',
-            'slotSortOrder' => 'required|integer|min:0',
-        ]);
-
-        $data = [
-            'name'       => $this->slotName,
-            'slots'      => $this->slotSlots,
-            'price'      => $this->slotPrice,
-            'badge'      => $this->slotBadge ?: null,
-            'is_active'  => $this->slotIsActive,
-            'sort_order' => $this->slotSortOrder,
-        ];
-
-        if ($this->editingSlotId) {
-            SlotPackage::findOrFail($this->editingSlotId)->update($data);
-            $this->dispatch('notify', message: 'Paket slot berhasil diperbarui.');
-        } else {
-            SlotPackage::create($data);
-            $this->dispatch('notify', message: 'Paket slot berhasil dibuat.');
-        }
-
-        $this->showSlotModal = false;
-    }
-
-    public function toggleSlot(int $id): void
-    {
-        $pkg = SlotPackage::findOrFail($id);
-        $pkg->is_active = ! $pkg->is_active;
-        $pkg->save();
-        $this->dispatch('notify', message: 'Status paket slot diperbarui.');
-    }
-
-    public function deleteSlot(int $id): void
-    {
-        SlotPackage::findOrFail($id)->delete();
-        $this->dispatch('notify', message: 'Paket slot dihapus.');
-    }
-
-    private function resetSlotForm(): void
-    {
-        $this->slotName      = '';
-        $this->slotSlots     = null;
-        $this->slotPrice     = null;
-        $this->slotBadge     = '';
-        $this->slotIsActive  = true;
-        $this->slotSortOrder = 0;
-    }
-
     // ─── VIP Plan CRUD ───────────────────────────────────────────────
 
     public function createVip(): void
@@ -297,28 +212,32 @@ class MonetizationPanel extends Component
     {
         $plan = VipPlan::findOrFail($id);
         $this->resetValidation();
-        $this->editingVipId      = $id;
-        $this->vipName           = $plan->name;
-        $this->vipDurationDays   = $plan->duration_days;
-        $this->vipPrice          = (float) $plan->price;
-        $this->vipTag            = $plan->tag ?? '';
-        $this->vipBadge          = $plan->badge ?? '';
-        $this->vipFeatures       = implode("\n", $plan->features ?? []);
-        $this->vipIsActive       = $plan->is_active;
-        $this->vipSortOrder      = $plan->sort_order;
-        $this->showVipModal      = true;
+        $this->editingVipId       = $id;
+        $this->vipName            = $plan->name;
+        $this->vipDurationDays    = $plan->duration_days;
+        $this->vipPrice           = (float) $plan->price;
+        $this->vipBonusPostQuota  = (int) $plan->bonus_post_quota;
+        $this->vipBonusBoostQuota = (int) $plan->bonus_boost_quota;
+        $this->vipTag             = $plan->tag ?? '';
+        $this->vipBadge           = $plan->badge ?? '';
+        $this->vipFeatures        = implode("\n", $plan->features ?? []);
+        $this->vipIsActive        = $plan->is_active;
+        $this->vipSortOrder       = $plan->sort_order;
+        $this->showVipModal       = true;
     }
 
     public function saveVip(): void
     {
         $this->validate([
-            'vipName'         => 'required|string|max:100',
-            'vipDurationDays' => 'required|integer|min:1',
-            'vipPrice'        => 'required|numeric|min:0',
-            'vipTag'          => 'nullable|string|max:100',
-            'vipBadge'        => 'nullable|string|max:100',
-            'vipFeatures'     => 'nullable|string',
-            'vipSortOrder'    => 'required|integer|min:0',
+            'vipName'            => 'required|string|max:100',
+            'vipDurationDays'    => 'required|integer|min:1',
+            'vipPrice'           => 'required|numeric|min:0',
+            'vipBonusPostQuota'  => 'required|integer|min:0',
+            'vipBonusBoostQuota' => 'required|integer|min:0',
+            'vipTag'             => 'nullable|string|max:100',
+            'vipBadge'           => 'nullable|string|max:100',
+            'vipFeatures'        => 'nullable|string',
+            'vipSortOrder'       => 'required|integer|min:0',
         ]);
 
         // Parse features: one per line, filter empty lines
@@ -329,14 +248,16 @@ class MonetizationPanel extends Component
             ->toArray();
 
         $data = [
-            'name'          => $this->vipName,
-            'duration_days' => $this->vipDurationDays,
-            'price'         => $this->vipPrice,
-            'tag'           => $this->vipTag ?: null,
-            'badge'         => $this->vipBadge ?: null,
-            'features'      => $features ?: null,
-            'is_active'     => $this->vipIsActive,
-            'sort_order'    => $this->vipSortOrder,
+            'name'              => $this->vipName,
+            'duration_days'     => $this->vipDurationDays,
+            'price'             => $this->vipPrice,
+            'bonus_post_quota'  => $this->vipBonusPostQuota,
+            'bonus_boost_quota' => $this->vipBonusBoostQuota,
+            'tag'               => $this->vipTag ?: null,
+            'badge'             => $this->vipBadge ?: null,
+            'features'          => $features ?: null,
+            'is_active'         => $this->vipIsActive,
+            'sort_order'        => $this->vipSortOrder,
         ];
 
         if ($this->editingVipId) {
@@ -366,14 +287,16 @@ class MonetizationPanel extends Component
 
     private function resetVipForm(): void
     {
-        $this->vipName          = '';
-        $this->vipDurationDays  = null;
-        $this->vipPrice         = null;
-        $this->vipTag           = '';
-        $this->vipBadge         = '';
-        $this->vipFeatures      = '';
-        $this->vipIsActive      = true;
-        $this->vipSortOrder     = 0;
+        $this->vipName            = '';
+        $this->vipDurationDays    = null;
+        $this->vipPrice           = null;
+        $this->vipBonusPostQuota  = 0;
+        $this->vipBonusBoostQuota = 0;
+        $this->vipTag             = '';
+        $this->vipBadge           = '';
+        $this->vipFeatures        = '';
+        $this->vipIsActive        = true;
+        $this->vipSortOrder       = 0;
     }
 
     // ─── Boost Package CRUD ──────────────────────────────────────────
@@ -464,7 +387,6 @@ class MonetizationPanel extends Component
     {
         $transactions  = collect();
         $vouchers      = collect();
-        $slotPackages  = collect();
         $vipPlans      = collect();
         $boostPackages = collect();
 
@@ -478,8 +400,6 @@ class MonetizationPanel extends Component
 
             'vouchers' => $vouchers = Voucher::latest()->paginate(15),
 
-            'slot_packages' => $slotPackages = SlotPackage::orderBy('sort_order')->paginate(20),
-
             'vip_plans' => $vipPlans = VipPlan::orderBy('sort_order')->paginate(20),
 
             'boost_packages' => $boostPackages = BoostPackage::orderBy('sort_order')->paginate(20),
@@ -490,7 +410,6 @@ class MonetizationPanel extends Component
         return view('livewire.admin.monetization-panel', compact(
             'transactions',
             'vouchers',
-            'slotPackages',
             'vipPlans',
             'boostPackages',
         ));
