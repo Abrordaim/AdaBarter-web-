@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\RegionController;
 use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Http\Controllers\Api\MeetingPointController;
 use App\Http\Controllers\Api\BarterTrackingController;
+use App\Http\Controllers\Api\DirectChatController;
 
 /*
 |--------------------------------------------------------------------------
@@ -77,6 +78,13 @@ Route::middleware(['auth:sanctum', 'check_banned'])->group(function () {
     Route::get('/chats', [ChatController::class, 'conversations']);
     Route::get('/offers/{offerId}/chats', [ChatController::class, 'messages']);
     Route::post('/offers/{offerId}/chats', [ChatController::class, 'send']);
+
+    // Direct Chats (Chat langsung antar pengguna per barang / barter)
+    Route::post('/items/{itemId}/direct-chat', [DirectChatController::class, 'start']);
+    Route::get('/offers/{offerId}/conversation', [DirectChatController::class, 'forOffer']);
+    Route::get('/direct-chats', [DirectChatController::class, 'conversations']);
+    Route::get('/direct-chats/{conversationId}', [DirectChatController::class, 'messages']);
+    Route::post('/direct-chats/{conversationId}/messages', [DirectChatController::class, 'send']);
 
     // Meeting Points (Lock Titik Temu)
     Route::get('/offers/{id}/meeting-point', [MeetingPointController::class, 'show']);
