@@ -48,6 +48,12 @@ class OfferService
      */
     public function createOffer(User $user, array $data): Offer
     {
+        if ($user->hasRestriction('no_offer')) {
+            throw ValidationException::withMessages([
+                'restriction' => ['Akun Anda sedang dibatasi dari membuat penawaran barter baru karena akumulasi poin penalti.'],
+            ]);
+        }
+
         // Support both offerer_item_ids (array) and offerer_item_id (single)
         $offererItemIds = [];
         if (!empty($data['offerer_item_ids']) && is_array($data['offerer_item_ids'])) {

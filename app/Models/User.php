@@ -48,7 +48,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property-read \App\Models\Regency|null $regency
  * @property-read \App\Models\District|null $district
  */
-#[Fillable(['name', 'email', 'password', 'role', 'phone', 'city', 'province_id', 'regency_id', 'district_id', 'province_name', 'regency_name', 'district_name', 'avatar', 'is_vip', 'vip_expires_at', 'boost_quota', 'is_banned', 'banned_at', 'ban_reason', 'free_post_quota', 'bonus_post_quota'])]
+#[Fillable(['name', 'email', 'password', 'role', 'phone', 'city', 'province_id', 'regency_id', 'district_id', 'province_name', 'regency_name', 'district_name', 'avatar', 'is_vip', 'vip_expires_at', 'boost_quota', 'is_banned', 'banned_at', 'ban_reason', 'free_post_quota', 'bonus_post_quota', 'penalty_points', 'account_status', 'restriction_tier', 'restricted_until', 'active_restrictions'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -70,6 +70,10 @@ class User extends Authenticatable
             'boost_quota' => 'integer',
             'is_banned' => 'boolean',
             'banned_at' => 'datetime',
+            'penalty_points' => 'integer',
+            'restriction_tier' => 'integer',
+            'restricted_until' => 'datetime',
+            'active_restrictions' => 'array',
             'province_id' => 'integer',
             'regency_id' => 'integer',
             'district_id' => 'integer',
@@ -155,9 +159,43 @@ class User extends Authenticatable
         return (bool) $this->is_vip || $this->subscriptions()->active()->exists();
     }
 
+    public function penalties(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(UserPenalty::class);
+    }
+
     public function isBanned(): bool
     {
-        return (bool) $this->is_banned;
+        return (bool) $this->is_banned || $this->account_status === 'banned' || (int) $this->restriction_tier >= 4;
+    }
+
+    public function isRestricted(): bool
+    {
+        if ($this->isBanned()) {
+            return true;
+        }
+
+        if ($this->restriction_tier > 0) {
+            if ($this->restricted_until !== null && $this->restricted_until->isPast()) {
+                return false;
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    public function hasRestriction(string $feature): bool
+    {
+        if ($this->isBanned()) {
+            return true;
+        }
+
+        if (! $this->isRestricted()) {
+            return false;
+        }
+
+        return in_array($feature, $this->active_restrictions ?? []);
     }
 
     public function remainingPostQuota(): int
@@ -168,7 +206,26 @@ class User extends Authenticatable
 
     public function canPost(): bool
     {
+        if ($this->hasRestriction('no_post')) {
+            return false;
+        }
+
         return $this->isVip() || $this->remainingPostQuota() > 0;
+    }
+
+    public function canOffer(): bool
+    {
+        return ! $this->hasRestriction('no_offer');
+    }
+
+    public function canDirectChat(): bool
+    {
+        return ! $this->hasRestriction('no_direct_chat');
+    }
+
+    public function canBoost(): bool
+    {
+        return ! $this->hasRestriction('no_boost');
     }
 
     public function ratingsReceived(): \Illuminate\Database\Eloquent\Relations\HasMany

@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\PaymentWebhookController;
 use App\Http\Controllers\Api\MeetingPointController;
 use App\Http\Controllers\Api\BarterTrackingController;
 use App\Http\Controllers\Api\DirectChatController;
+use App\Http\Controllers\Api\AccountHealthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -55,16 +56,20 @@ Route::middleware(['auth:sanctum', 'check_banned'])->group(function () {
     Route::put('/user/profile', [UserController::class, 'updateProfile']);
     Route::post('/user/profile', [UserController::class, 'updateProfile']); // Support multipart/form-data with POST
 
+    // Account Health & Penalties (Shopee-Style)
+    Route::get('/user/account-health', [AccountHealthController::class, 'show']);
+    Route::post('/user/penalties/{id}/appeal', [AccountHealthController::class, 'appeal']);
+
     // Items (User items & CRUD)
     Route::get('/my-items', [ItemController::class, 'myItems']);
-    Route::post('/items', [ItemController::class, 'store']);
+    Route::post('/items', [ItemController::class, 'store'])->middleware('restriction:no_post');
     Route::put('/items/{id}', [ItemController::class, 'update']);
     Route::post('/items/{id}', [ItemController::class, 'update']); // Support multipart/form-data update
     Route::delete('/items/{id}', [ItemController::class, 'destroy']);
 
     // Offers (Barter & Tukar Tambah)
     Route::get('/offers', [OfferController::class, 'index']);
-    Route::post('/offers', [OfferController::class, 'store']);
+    Route::post('/offers', [OfferController::class, 'store'])->middleware('restriction:no_offer');
     Route::get('/offers/{id}', [OfferController::class, 'show']);
     Route::post('/offers/{id}/accept', [OfferController::class, 'accept']);
     Route::post('/offers/{id}/reject', [OfferController::class, 'reject']);
@@ -80,7 +85,7 @@ Route::middleware(['auth:sanctum', 'check_banned'])->group(function () {
     Route::post('/offers/{offerId}/chats', [ChatController::class, 'send']);
 
     // Direct Chats (Chat langsung antar pengguna per barang / barter)
-    Route::post('/items/{itemId}/direct-chat', [DirectChatController::class, 'start']);
+    Route::post('/items/{itemId}/direct-chat', [DirectChatController::class, 'start'])->middleware('restriction:no_direct_chat');
     Route::get('/offers/{offerId}/conversation', [DirectChatController::class, 'forOffer']);
     Route::get('/direct-chats', [DirectChatController::class, 'conversations']);
     Route::get('/direct-chats/{conversationId}', [DirectChatController::class, 'messages']);
@@ -105,9 +110,9 @@ Route::middleware(['auth:sanctum', 'check_banned'])->group(function () {
     // Monetization (VIP Midtrans & Direct, Boost Midtrans & Free Quota, Transactions)
     Route::post('/monetization/vip/pay', [MonetizationController::class, 'payVip']);
     Route::post('/monetization/subscribe', [MonetizationController::class, 'subscribe']);
-    Route::post('/monetization/items/{id}/boost/pay', [MonetizationController::class, 'payBoost']);
-    Route::post('/monetization/items/{id}/boost/use-quota', [MonetizationController::class, 'boostWithQuota']);
-    Route::post('/monetization/items/{id}/boost', [MonetizationController::class, 'boost']);
+    Route::post('/monetization/items/{id}/boost/pay', [MonetizationController::class, 'payBoost'])->middleware('restriction:no_boost');
+    Route::post('/monetization/items/{id}/boost/use-quota', [MonetizationController::class, 'boostWithQuota'])->middleware('restriction:no_boost');
+    Route::post('/monetization/items/{id}/boost', [MonetizationController::class, 'boost'])->middleware('restriction:no_boost');
     Route::get('/monetization/transactions', [MonetizationController::class, 'transactions']);
 
     // Wallet & Withdrawal

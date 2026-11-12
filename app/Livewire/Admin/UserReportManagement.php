@@ -5,6 +5,8 @@ namespace App\Livewire\Admin;
 use App\Models\Item;
 use App\Models\Report;
 use App\Models\User;
+use App\Models\UserPenalty;
+use App\Services\PenaltyService;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -16,9 +18,23 @@ class UserReportManagement extends Component
 {
     use WithPagination;
 
+    public $activeTab = 'reports'; // 'reports' or 'appeals'
     public $statusFilter = 'pending'; // 'all', 'pending', 'resolved'
     public $search = '';
     public $selectedReport = null; // for modal preview if needed
+
+    // Penalty Award Modal State
+    public $penaltyModalVisible = false;
+    public $targetReportId = null;
+    public $penaltyTargetUser = null;
+    public $penaltyPoints = 1;
+    public $penaltyCategory = 'katalog_menyesatkan';
+    public $penaltyReason = '';
+
+    // Appeal review modal state
+    public $appealModalVisible = false;
+    public $selectedPenalty = null;
+    public $appealAdminNotes = '';
 
     public function updatingStatusFilter()
     {
@@ -30,6 +46,12 @@ class UserReportManagement extends Component
         $this->resetPage();
     }
 
+    public function setTab($tab)
+    {
+        $this->activeTab = $tab;
+        $this->resetPage();
+    }
+
     public function viewReport($reportId)
     {
         $this->selectedReport = Report::with(['reporter', 'reportedUser', 'reportable', 'resolver'])->find($reportId);
@@ -38,6 +60,85 @@ class UserReportManagement extends Component
     public function closeReportModal()
     {
         $this->selectedReport = null;
+    }
+
+    public function openPenaltyModal($reportId)
+    {
+        $report = Report::with('reportedUser')->findOrFail($reportId);
+        $this->targetReportId = $reportId;
+        $this->penaltyTargetUser = $report->reportedUser;
+        $this->penaltyPoints = 1;
+        $this->penaltyCategory = 'katalog_menyesatkan';
+        $this->penaltyReason = 'Pelanggaran terkait laporan #' . $reportId . ' (' . ($report->reason ?? '') . ')';
+        $this->penaltyModalVisible = true;
+    }
+
+    public function closePenaltyModal()
+    {
+        $this->penaltyModalVisible = false;
+        $this->targetReportId = null;
+        $this->penaltyTargetUser = null;
+        $this->penaltyPoints = 1;
+        $this->penaltyReason = '';
+    }
+
+    public function submitAwardPenalty(PenaltyService $penaltyService)
+    {
+        $report = Report::findOrFail($this->targetReportId);
+        if (!$report->reported_user_id) {
+            $this->dispatch('notify', message: 'Laporan tidak memiliki target pengguna.');
+            return;
+        }
+
+        $user = User::findOrFail($report->reported_user_id);
+
+        $penaltyService->awardPoints(
+            $user,
+            (int) $this->penaltyPoints,
+            $this->penaltyCategory,
+            $this->penaltyReason,
+            $report->id,
+            auth()->id()
+        );
+
+        $this->closePenaltyModal();
+        $this->dispatch('notify', message: "Berhasil memberikan {$this->penaltyPoints} poin penalti kepada {$user->name}.");
+    }
+
+    public function openAppealModal($penaltyId)
+    {
+        $this->selectedPenalty = UserPenalty::with(['user', 'report'])->findOrFail($penaltyId);
+        $this->appealAdminNotes = '';
+        $this->appealModalVisible = true;
+    }
+
+    public function closeAppealModal()
+    {
+        $this->appealModalVisible = false;
+        $this->selectedPenalty = null;
+        $this->appealAdminNotes = '';
+    }
+
+    public function acceptAppeal(PenaltyService $penaltyService)
+    {
+        if (!$this->selectedPenalty) return;
+
+        $notes = $this->appealAdminNotes ?: 'Banding disetujui setelah peninjauan bukti.';
+        $penaltyService->resolveAppeal($this->selectedPenalty->id, true, $notes, auth()->id());
+
+        $this->closeAppealModal();
+        $this->dispatch('notify', message: 'Banding berhasil disetujui. Poin penalti ditarik kembali dan akun dipulihkan.');
+    }
+
+    public function rejectAppeal(PenaltyService $penaltyService)
+    {
+        if (!$this->selectedPenalty) return;
+
+        $notes = $this->appealAdminNotes ?: 'Banding ditolak setelah peninjauan bukti.';
+        $penaltyService->resolveAppeal($this->selectedPenalty->id, false, $notes, auth()->id());
+
+        $this->closeAppealModal();
+        $this->dispatch('notify', message: 'Banding ditolak. Poin penalti tetap berlaku.');
     }
 
     public function takedownItem($reportId)
@@ -82,32 +183,24 @@ class UserReportManagement extends Component
         }
     }
 
-    public function banUser($reportId)
+    public function banUser($reportId, PenaltyService $penaltyService)
     {
         $report = Report::findOrFail($reportId);
 
         if ($report->reported_user_id) {
             $user = User::find($report->reported_user_id);
             if ($user) {
-                // Mark account as banned
-                $user->is_banned = true;
-                $user->banned_at = now();
-                $user->ban_reason = 'Pelanggaran aturan komunitas AdaBarter (laporan #' . $report->id . ')';
-                $user->save();
-
-                // Revoke all active tokens
-                $user->tokens()->delete();
-
-                // Moderate all active items of this user
-                Item::where('user_id', $user->id)->where('status', 'active')->update(['status' => 'moderated']);
+                // Award 15 points (Tier 4 Ban)
+                $penaltyService->awardPoints(
+                    $user,
+                    15,
+                    'pelanggaran_berat',
+                    'Pelanggaran aturan komunitas AdaBarter (laporan #' . $report->id . ')',
+                    $report->id,
+                    auth()->id()
+                );
             }
         }
-
-        $report->status = 'resolved';
-        $report->action_taken = 'user_banned';
-        $report->resolved_by = auth()->id();
-        $report->resolved_at = now();
-        $report->save();
 
         $this->dispatch('notify', message: 'Pengguna berhasil di-ban: akun dinonaktifkan, sesi dicabut, dan barang dimoderasi.');
         if ($this->selectedReport && $this->selectedReport->id === $reportId) {
@@ -115,14 +208,20 @@ class UserReportManagement extends Component
         }
     }
 
-    public function unbanUser($userId)
+    public function unbanUser($userId, PenaltyService $penaltyService)
     {
         $user = User::findOrFail($userId);
+
+        UserPenalty::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->update(['status' => 'revoked']);
 
         $user->is_banned = false;
         $user->banned_at = null;
         $user->ban_reason = null;
         $user->save();
+
+        $penaltyService->recalculateUserPoints($user);
 
         Item::where('user_id', $user->id)->where('status', 'moderated')->update(['status' => 'active']);
 
@@ -157,6 +256,36 @@ class UserReportManagement extends Component
 
     public function render()
     {
+        $pendingCount = Report::where('status', 'pending')->count();
+        $resolvedCount = Report::where('status', 'resolved')->count();
+        $pendingAppealsCount = UserPenalty::where('appeal_status', 'pending')->count();
+
+        if ($this->activeTab === 'appeals') {
+            $appealsQuery = UserPenalty::with(['user', 'report', 'admin', 'appealResolver'])
+                ->where('appeal_status', 'pending');
+
+            if ($this->search) {
+                $appealsQuery->where(function ($q) {
+                    $q->where('reason', 'like', '%' . $this->search . '%')
+                      ->orWhere('appeal_reason', 'like', '%' . $this->search . '%')
+                      ->orWhereHas('user', function ($sub) {
+                          $sub->where('name', 'like', '%' . $this->search . '%')
+                              ->orWhere('email', 'like', '%' . $this->search . '%');
+                      });
+                });
+            }
+
+            $appeals = $appealsQuery->latest('appealed_at')->paginate(10);
+
+            return view('livewire.admin.user-report-management', [
+                'reports' => collect([]),
+                'appeals' => $appeals,
+                'pendingCount' => $pendingCount,
+                'resolvedCount' => $resolvedCount,
+                'pendingAppealsCount' => $pendingAppealsCount,
+            ]);
+        }
+
         $query = Report::query()->with(['reporter', 'reportedUser', 'reportable', 'resolver']);
 
         if ($this->statusFilter && $this->statusFilter !== 'all') {
@@ -179,13 +308,13 @@ class UserReportManagement extends Component
         }
 
         $reports = $query->latest()->paginate(10);
-        $pendingCount = Report::where('status', 'pending')->count();
-        $resolvedCount = Report::where('status', 'resolved')->count();
 
         return view('livewire.admin.user-report-management', [
             'reports' => $reports,
+            'appeals' => collect([]),
             'pendingCount' => $pendingCount,
             'resolvedCount' => $resolvedCount,
+            'pendingAppealsCount' => $pendingAppealsCount,
         ]);
     }
 }

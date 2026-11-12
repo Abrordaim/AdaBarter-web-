@@ -32,6 +32,12 @@ class DirectChatService
             ]);
         }
 
+        if ($initiator->hasRestriction('no_direct_chat')) {
+            throw ValidationException::withMessages([
+                'restriction' => ['Akun Anda sedang dibatasi dari memulai obrolan langsung baru karena akumulasi poin penalti.'],
+            ]);
+        }
+
         // Look for existing conversation between this initiator, item owner, and this item
         $conversation = Conversation::firstOrCreate(
             [

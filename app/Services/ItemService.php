@@ -42,6 +42,13 @@ class ItemService
      */
     public function createItem(User $user, array $data, array $images = []): Item
     {
+        // Enforce penalty restriction
+        if ($user->hasRestriction('no_post')) {
+            throw ValidationException::withMessages([
+                'restriction' => ['Akun Anda sedang dibatasi dari mengunggah barang baru karena akumulasi poin penalti.'],
+            ]);
+        }
+
         // Enforce the 3-post quota validation
         if (!$user->canPost()) {
             throw ValidationException::withMessages([

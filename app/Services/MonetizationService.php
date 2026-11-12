@@ -143,6 +143,10 @@ class MonetizationService
             throw new AuthorizationException('Anda hanya dapat mem-boost barang milik Anda sendiri.');
         }
 
+        if ($user->hasRestriction('no_boost')) {
+            throw new \Exception('Fitur Iklan Sorotan (Boost) sedang dinonaktifkan pada akun Anda karena akumulasi poin penalti.');
+        }
+
         /** @var BoostPackage|null $boostPackage */
         $boostPackage = null;
         if ($boostPackageId) {

@@ -270,6 +270,10 @@ class PaymentService
      */
     public function createBoostSnapToken(User $user, int $itemId, int $packageId): array
     {
+        if ($user->hasRestriction('no_boost')) {
+            throw new InvalidArgumentException('Fitur Iklan Sorotan (Boost) sedang dinonaktifkan pada akun Anda karena akumulasi poin penalti.');
+        }
+
         $item = Item::where('id', $itemId)->where('user_id', $user->id)->first();
         if (!$item) {
             throw new AuthorizationException('Barang tidak ditemukan atau bukan milik Anda.');

@@ -155,11 +155,11 @@
                                     <td class="px-6 py-4 text-center">
                                         @if($voucher->distribution === 'public')
                                             <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800">
-                                                Publik (1-Tap)
+                                                Publik 
                                             </span>
                                         @else
                                             <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-800">
-                                                Privat (Kode)
+                                                Reedem Code
                                             </span>
                                         @endif
                                     </td>
@@ -429,7 +429,7 @@
                                 <label class="flex items-center gap-2 p-3 border rounded-lg cursor-pointer transition {{ $distribution === 'private' ? 'border-purple-600 bg-purple-50 text-purple-900 font-medium' : 'border-gray-200 text-gray-700' }}">
                                     <input type="radio" wire:model.live="distribution" value="private" class="text-purple-600 focus:ring-purple-500">
                                     <div>
-                                        <div class="text-sm font-bold">Privat (Kode Promo)</div>
+                                        <div class="text-sm font-bold">Reedem Code</div>
                                         <div class="text-xs text-gray-500">Hanya bisa diklaim via input kode rahasia</div>
                                     </div>
                                 </label>
